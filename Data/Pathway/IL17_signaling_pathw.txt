@@ -1,0 +1,7 @@
+﻿IL17A	interacts-with	IL17RA
+IL17B	interacts-with	IL17RB
+IL17C	interacts-with	IL17RE
+IL17F	interacts-with	IL17RA
+IL17RA	interacts-with	IL17RC
+IL17RB	interacts-with	IL25
+NFKB1	interacts-with	RELA
