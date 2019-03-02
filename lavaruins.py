@@ -240,6 +240,7 @@ app.layout = html.Div(
 def populate_graphs(contents, name, date):
     if contents is not None:
         df = parse_file_contents(contents, name, date)
+        df = df.rename(index=str, columns={"symbol": "gene_ID"})
         volc_figure={
             'data':[
                 go.Scattergl(
