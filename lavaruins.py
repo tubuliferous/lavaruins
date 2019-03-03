@@ -20,7 +20,7 @@ auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
 server = app.server
 
 # Annotation imports
-mgi_annos = pd.read_csv('Data/HOM_AllOrganism.rpt.tsv', sep='\t')
+mgi_annos = pd.read_csv('Data/homologs_expanded_synonyms.tsv', sep='\t')
 
 # Algorithmically determine the smallest and largest float values
 #   - For use with giving value to zero-valued p-values 
@@ -91,7 +91,6 @@ def generate_gene_info(clickData, x_name='Unknown', y_name='Unknown'):
         x_value = float(clickData['points'][0]['x'])
         y_value = float(clickData['points'][0]['y'])
 
-        # gene_name = 'Sort1'
         gene_annos = mgi_annos[(mgi_annos['Symbol']==gene_name) & (mgi_annos['Common Organism Name']=='mouse, laboratory')]
  
         try:
@@ -226,7 +225,7 @@ app.layout = html.Div(
             id='upload-data',
             children=html.Div([
                 'Drag and Drop or ',
-                html.A('Select Files')
+                html.A('Select File')
             ]),
             style={
                 'width': '100%',
