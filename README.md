@@ -4,8 +4,7 @@ LavaRuins is a friendly interactive data visualizer for DESeq differential gene 
 
 Currently LavaRuins will read Excel and CSV input files, identified by file extension name (.csv or .xls*). The enforced file layout is exemplified below. Blue column names are currently required, and red column names are recommended but not currently required. 
 
-
-![Alt text](images/README_table.svg)<img src="images/README_table.svg">
+<img src="images/README_table.svg" width="800">
 
 <!--Generate example DESEq file structure table-->
 <!-- 
