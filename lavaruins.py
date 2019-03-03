@@ -189,7 +189,7 @@ tab_plot_volcano = dcc.Tab(
                 id='volcano-plot',
                 config={
                     "displaylogo": False,
-                    'modeBarButtonsToRemove': ['pan2d','lasso2d']
+                    'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
                 },
             ), 
         ], style={'width':'70%', 'display':'inline-block'}),
@@ -204,7 +204,7 @@ tab_plot_ma = dcc.Tab(
                 id='ma-plot',
                 config={
                     "displaylogo": False,
-                    'modeBarButtonsToRemove': ['pan2d','lasso2d']
+                    'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
                 },
             ),
         ], style={'width':'70%', 'display':'inline-block'}),
