@@ -194,7 +194,7 @@ tab_plot_ma = dcc.Tab(
 )
 app.layout = html.Div(
     children=[
-        html.H2('Lavaruins Differential Gene Expression Explorer'),
+        html.H2('LavaRuins Differential Gene Expression Explorer'),
         dcc.Tabs(
             id='plot-tabs',
             children=[
