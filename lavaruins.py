@@ -98,27 +98,45 @@ def generate_gene_info(clickData, x_name='Unknown', y_name='Unknown'):
             mgi_id = gene_annos['Mouse MGI ID'].values[0]
             mgi_link = 'http://www.informatics.jax.org/accession/' + str(mgi_id)
             location = gene_annos['Genetic Location'].values[0]
-            function_name = gene_annos['Name'].values[0]
-            synonyms = (', ').join(gene_annos['Synonyms'].values[0].split('|'))
         except:
             mgi_id = 'NA'
             mgi_link = 'NA'
-            location = 'NA'
+            location = 'NA'            
+        try:
+            function_name = gene_annos['Name'].values[0]
+        except:
             function_name = 'NA'
+        try:
+            synonyms = (', ').join(gene_annos['Synonyms'].values[0].split('|'))            
+        except:
             synonyms = 'NA'
         try:
             homologene_id = gene_annos['HomoloGene ID'].values[0]
             human_homolog = mgi_annos[(mgi_annos['HomoloGene ID']==homologene_id) & (mgi_annos['Common Organism Name']=='human')]
             human_homolog_name = human_homolog['Symbol'].values[0]
-            human_synonyms = (', ').join(human_homolog['Synonyms'].values[0].split('|'))
-            hgnc_id = human_homolog['HGNC ID'].values[0]
+        except:
+            human_homolog_name = 'NA'            
+        try:
+            hgnc_id = human_homolog['HGNC ID'].values[0]            
+        except:
+            hgnc_id = 'NA'
+        try:
             hgnc_number = hgnc_id.split(':')[1]
             hgnc_link = 'https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/' + hgnc_number
         except:
-            human_homolog_name = 'NA'
-            human_synonyms = 'NA'
-            hgnc_id = 'NA'
             hgnc_link ='NA'
+        try:
+            human_synonyms = (', ').join(human_homolog['Synonyms'].values[0].split('|'))
+        except:
+            human_synonyms = 'NA'
+        try:
+            human_function_name = human_homolog['Name'].values[0]
+        except:
+            human_function_name = 'NA'
+        try:
+            human_location = gene_annos['Genetic Location'].values[0]
+        except:
+            human_location = 'NA'
         try:    
             omim_id = human_homolog['OMIM Gene ID'].values[0]
             omim_number = omim_id.split(':')[1]
@@ -128,9 +146,9 @@ def generate_gene_info(clickData, x_name='Unknown', y_name='Unknown'):
             omim_link = 'NA'
 
         mouse_md = dcc.Markdown(dedent('''''' +
-            '#### Gene Info'
-            '\n\n**Gene Name**: {}'.format(gene_name) +
-            '\n\n**Synonyms:** {}'.format(synonyms) +
+            '##### Mouse Gene' + 
+            '\n\n**Gene Name**: *{}*'.format(gene_name) +
+            '\n\n**Synonyms:** *{}*'.format(synonyms) +
             '\n\n**{}:** {:4f}'.format(x_name, x_value) + 
             '\n\n**{}:** {:4f}'.format(y_name, y_value) +
             '\n\n**Location:** {}'.format(location) +
@@ -138,9 +156,11 @@ def generate_gene_info(clickData, x_name='Unknown', y_name='Unknown'):
         mgi_html_id = html.B('MGI ID: ')
         mgi_html_link = html.A(mgi_id, href=mgi_link, target='_blank')
         human_md = dcc.Markdown(dedent('''''' +
-            '\n\n---' +
-            '\n**Human Homolog Name**: {}'.format(human_homolog_name) +
-            '\n\n**Human Synonyms:** {}'.format(human_synonyms)))
+            '\n\n##### Human Homolog' +
+            '\n**Human Homolog Name**: *{}*'.format(human_homolog_name) +
+            '\n\n**Human Synonyms:** *{}*'.format(human_synonyms) +
+            '\n\n**Human Functional Name:** {}'.format(human_function_name) +
+            '\n\n**Homolog Location:** {}'.format(human_location)))
         hgnc_html_id = html.B('HGNC ID: ')
         hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
         omim_html_id = html.B('OMIM ID: ') 
