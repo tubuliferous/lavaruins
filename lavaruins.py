@@ -134,7 +134,7 @@ def generate_gene_info(clickData, x_name='Unknown', y_name='Unknown'):
         except:
             human_function_name = 'NA'
         try:
-            human_location = gene_annos['Genetic Location'].values[0]
+            human_location = human_homolog['Genetic Location'].values[0]
         except:
             human_location = 'NA'
         try:    
