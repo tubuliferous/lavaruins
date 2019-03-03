@@ -5,3 +5,4 @@ venv
 Resources
 .~lock*
 activate
+*.swp
