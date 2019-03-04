@@ -1,0 +1,3 @@
+2019/2/21
+For Homologene TSV for: gene synonyms, homology information, gene functional names, MGI IDs, HGNC IDs, OMIM IDs
+http://www.informatics.jax.org/downloads/reports/HOM_AllOrganism.rpt 

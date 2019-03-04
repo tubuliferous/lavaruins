@@ -20,7 +20,6 @@ gene_syn_dict = {k:mus_df_syns[mus_df_syns['Symbol']==k]["Synonyms"].values[0].s
 for k in gene_syn_dict:
     gene_syn_dict[k].append(k)
 
-
 list_of_dfs = []
 for k in gene_syn_dict:
     for v in gene_syn_dict[k]:

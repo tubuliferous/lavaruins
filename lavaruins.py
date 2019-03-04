@@ -181,6 +181,23 @@ marker_settings = {
     'size':8,
     'opacity':0.5
 }
+
+tabs_styles = {
+    'height': '44px'
+}
+tab_style = {
+    'borderBottom': '1px solid #d6d6d6',
+    'padding': '6px',
+    'fontWeight': 'bold'
+}
+tab_selected_style = {
+    'borderTop': '1px solid #d6d6d6',
+    'borderBottom': '1px solid #d6d6d6',
+    'backgroundColor': '#119DFF',
+    'color': 'white',
+    'padding': '6px'
+}
+
 tab_plot_volcano = dcc.Tab(
     label='Volcano Plot',
     children=[
@@ -192,9 +209,9 @@ tab_plot_volcano = dcc.Tab(
                     'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
                 },
             ), 
-        ], style={'width':'70%', 'display':'inline-block'}),
+        ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
         html.Div(id='gene-info-markdown-volcano', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top'})         
-    ]
+    ], style=tab_style, selected_style=tab_selected_style
 )
 tab_plot_ma = dcc.Tab(
     label='MA Plot',
@@ -207,41 +224,65 @@ tab_plot_ma = dcc.Tab(
                     'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
                 },
             ),
-        ], style={'width':'70%', 'display':'inline-block'}),
+        ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
         html.Div(id='gene-info-markdown-ma', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top'})  
-    ]
+    ], style=tab_style, selected_style=tab_selected_style
 )
 app.layout = html.Div(
-    children=[
+    children=[ 
         html.H2('LavaRuins Differential Gene Expression Explorer'),
-        dcc.Tabs(
-            id='plot-tabs',
+        html.Div(
             children=[
-                tab_plot_volcano,
-                tab_plot_ma
-            ]
-        ),
-        dcc.Upload(
-            id='upload-data',
-            children=html.Div([
-                'Drag and Drop or ',
-                html.A('Select File')
-            ]),
-            style={
-                'width': '100%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                'margin': '10px'
-            },
-            # Allow multiple files to be uploaded
-            # multiple=True
-            multiple=False
-        ),
-        # html.Div(id='output-data-upload'),
+                html.Div(
+                    children=[
+                        dcc.Dropdown(
+                            id='gene-dropdown',
+                            options=[
+                                {'label': 'New York City', 'value': 'NYC'},
+                                {'label': 'Montreal', 'value': 'MTL'},
+                                {'label': 'San Francisco', 'value': 'SF'},
+                                {'label': 'Some City', 'value': 'SC'},
+                                {'label': 'Some Other City', 'value': 'SOC'},
+                            ],
+                            value='NYC',
+                            multi=True
+                        ),
+                    ], style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px'},
+                ),
+                html.Div(
+                    children=[
+                        dcc.Tabs(
+                            id='plot-tabs',
+                            children=[
+                                tab_plot_volcano,
+                                tab_plot_ma,
+                            ], style=tabs_styles,
+                        ),
+                    ], style={'width':'80%', 'display':'inline-block', 'vertical-align':'top'},
+                ),
+                html.Div(id='output-container'),
+                dcc.Upload(
+                    id='upload-data',
+                    children=html.Div([
+                        'Drag and Drop or ',
+                        html.A('Select File'),
+                    ]),
+                    style={
+                        'width': '100%',
+                        'height': '60px',
+                        'lineHeight': '60px',
+                        'borderWidth': '1px',
+                        'borderStyle': 'dashed',
+                        'borderRadius': '5px',
+                        'textAlign': 'center',
+                        'margin': '10px'
+                    },
+                    # Allow multiple files to be uploaded
+                    # multiple=True
+                    multiple=False,
+                )
+            ],
+        ), html.Div(id='output-data-upload'),
     ]
 )
 
@@ -253,7 +294,6 @@ app.layout = html.Div(
                 Output('gene-info-markdown-volcano', 'children'),
                 Output('gene-info-markdown-ma', 'children')
                ],
-
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'), State('upload-data', 'last_modified')])
 def populate_graphs(contents, name, date):
@@ -265,10 +305,9 @@ def populate_graphs(contents, name, date):
                 go.Scattergl(
                     x=df['log2FoldChange'],
                     y=-np.log10(df['padj']),
-                    # y=df['stat'],
                     mode='markers',
                     text=df['gene_ID'],
-                    marker=marker_settings
+                    marker=marker_settings,
                 )
             ],
             'layout':go.Layout(
@@ -297,6 +336,14 @@ def populate_graphs(contents, name, date):
         }
         # Refresh gene info panels when loading new files
         return volc_figure, ma_figure, [], []
+
+# Gene menu callback
+@app.callback(
+    dash.dependencies.Output('output-container', 'children'),
+    [dash.dependencies.Input('gene-dropdown', 'value')])
+def update_output(value):
+    return 'You have selected "{}"'.format(value)
+
 
 # Populate gene information panel from volcano plot click
 @app.callback(
