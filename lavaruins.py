@@ -22,6 +22,10 @@ server = app.server
 # Annotation imports
 mgi_annos = pd.read_csv('Data/homologs_expanded_synonyms.tsv', sep='\t')
 
+# Icon setup
+icon_filepath = 'Data/volcano.png'
+encoded_icon = base64.b64encode(open(icon_filepath, 'rb').read())
+
 # Algorithmically determine the smallest and largest float values
 #   - For use with giving value to zero-valued p-values 
 #   - Source: https://stackoverflow.com/questions/1835787/what-is-the-range-of-values-a-float-can-have-in-python
@@ -193,7 +197,7 @@ tab_style = {
 tab_selected_style = {
     'borderTop': '1px solid #d6d6d6',
     'borderBottom': '1px solid #d6d6d6',
-    'backgroundColor': '#119DFF',
+    'backgroundColor': '#717272',
     'color': 'white',
     'padding': '6px'
 }
@@ -229,23 +233,17 @@ tab_plot_ma = dcc.Tab(
     ], style=tab_style, selected_style=tab_selected_style
 )
 app.layout = html.Div(
-    children=[ 
-        html.H2('LavaRuins Differential Gene Expression Explorer'),
+    children=[
+        html.Img(src='data:image/png;base64,{}'.format(encoded_icon.decode()), style={'width': '60px', 'display':'inline-block'}),
+        html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline-block'}),
         html.Div(
             children=[
                 html.Div(
                     children=[
                         dcc.Dropdown(
                             id='gene-dropdown',
-                            options=[
-                                {'label': 'New York City', 'value': 'NYC'},
-                                {'label': 'Montreal', 'value': 'MTL'},
-                                {'label': 'San Francisco', 'value': 'SF'},
-                                {'label': 'Some City', 'value': 'SC'},
-                                {'label': 'Some Other City', 'value': 'SOC'},
-                            ],
-                            value='NYC',
-                            multi=True
+                            multi=True,
+                            style={'resize': 'none'}  # Doesn't work!!
                         ),
                     ], style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px'},
                 ),
@@ -288,14 +286,15 @@ app.layout = html.Div(
 
 # Generate volcano and MA plots from imported RNAseq file
 @app.callback([
-                Output('volcano-plot', 'figure'),
-                Output('ma-plot', 'figure'),
-                # Flush Gene Info panel when importing new file
-                Output('gene-info-markdown-volcano', 'children'),
-                Output('gene-info-markdown-ma', 'children')
-               ],
-              [Input('upload-data', 'contents')],
-              [State('upload-data', 'filename'), State('upload-data', 'last_modified')])
+            Output('volcano-plot', 'figure'),
+            Output('ma-plot', 'figure'),
+            # Flush Gene Info panel when importing new file
+            Output('gene-info-markdown-volcano', 'children'),
+            Output('gene-info-markdown-ma', 'children'), 
+            Output('gene-dropdown', 'options')
+       ],
+      [Input('upload-data', 'contents')],
+      [State('upload-data', 'filename'), State('upload-data', 'last_modified')])
 def populate_graphs(contents, name, date):
     if contents is not None:
         df = parse_file_contents(contents, name, date)
@@ -334,8 +333,10 @@ def populate_graphs(contents, name, date):
                 yaxis={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'},
             )
         }
+        # Generate list of dictionaries for populating gene dropdown menu
+        dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
         # Refresh gene info panels when loading new files
-        return volc_figure, ma_figure, [], []
+        return volc_figure, ma_figure, [], [], dropdown_options
 
 # Gene menu callback
 @app.callback(
