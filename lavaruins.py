@@ -9,6 +9,10 @@ import pandas as pd
 import base64
 import io
 import dash_auth
+# import json
+
+# For sharing clickData across multiple graphs:
+# https://gist.github.com/shawkinsl/22a0f4e0bf519330b92b7e99b3cfee8a
 
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -86,21 +90,25 @@ def parse_file_contents(contents, filename, date):
         ])
 
 # Setup gene information panel 
-def generate_gene_info(clickData, x_name='Unknown', y_name='Unknown'):
+def generate_gene_info(clickData, df=None):
     if clickData == 'default':
-        md = dcc.Markdown(children = dedent('''#### Gene Info'''))
-        return md
+        default_text = html.P(children = html.H4('Gene Info'), style={'textAlign':'center'})
+        return default_text
     else:
         gene_name = clickData['points'][0]['text']
-        x_value = float(clickData['points'][0]['x'])
-        y_value = float(clickData['points'][0]['y'])
+        # x_value = float(clickData['points'][0]['x'])
+        # y_value = float(clickData['points'][0]['y'])
+
+        padj = df[df['gene_ID'] == gene_name]['padj'].values[0]
+        log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
+        basemean = df[df['gene_ID'] == gene_name]['baseMean'].values[0]
 
         gene_annos = mgi_annos[(mgi_annos['Symbol']==gene_name) & (mgi_annos['Common Organism Name']=='mouse, laboratory')]
  
         try:
             mgi_id = gene_annos['Mouse MGI ID'].values[0]
             mgi_link = 'http://www.informatics.jax.org/accession/' + str(mgi_id)
-            location = gene_annos['Genetic Location'].values[0]
+            location = gene_annos['Genetic Location'].values[0].replace(' cM', '')
         except:
             mgi_id = 'NA'
             mgi_link = 'NA'
@@ -132,10 +140,11 @@ def generate_gene_info(clickData, x_name='Unknown', y_name='Unknown'):
             human_synonyms = (', ').join(human_homolog['Synonyms'].values[0].split('|'))
         except:
             human_synonyms = 'NA'
-        try:
-            human_function_name = human_homolog['Name'].values[0]
-        except:
-            human_function_name = 'NA'
+        # Human homologs almost always have similar functional names, so leave out for now
+        # try:
+        #     human_function_name = human_homolog['Name'].values[0]
+        # except:
+        #     human_function_name = 'NA'
         try:
             human_location = human_homolog['Genetic Location'].values[0]
         except:
@@ -148,34 +157,40 @@ def generate_gene_info(clickData, x_name='Unknown', y_name='Unknown'):
             omim_id = 'NA' 
             omim_link = 'NA'
 
+        mouse_header = html.Span('Mouse Gene', style={'font-size':'120%', 'text-decoration':'underline'})
         mouse_md = dcc.Markdown(dedent('''''' +
-            '##### Mouse Gene' + 
             '\n\n**Gene Name**: *{}*'.format(gene_name) +
             '\n\n**Synonyms:** *{}*'.format(synonyms) +
-            '\n\n**{}:** {:4f}'.format(x_name, x_value) + 
-            '\n\n**{}:** {:4f}'.format(y_name, y_value) +
+            '\n\n**-log₁₀(adjusted p-value):** {:4f}'.format(-np.log10(padj)) + 
+            '\n\n**log₁₀(base mean):** {:4f}'.format(np.log10(basemean)) +
+            '\n\n**log₂(fold change):** {:4f}'.format(log2foldchange) +
             '\n\n**Location:** {}'.format(location) +
             '\n\n**Functional Name:** {}'.format(function_name)))
         mgi_html_id = html.B('MGI ID: ')
         mgi_html_link = html.A(mgi_id, href=mgi_link, target='_blank')
+        human_header = html.Span('Human Homolog', style={'font-size':'120%', 'text-decoration':'underline'})
         human_md = dcc.Markdown(dedent('''''' +
-            '\n\n##### Human Homolog' +
-            '\n**Human Homolog Name**: *{}*'.format(human_homolog_name) +
+            '\n\n**Human Homolog Name**: *{}*'.format(human_homolog_name) +
             '\n\n**Human Synonyms:** *{}*'.format(human_synonyms) +
-            '\n\n**Human Functional Name:** {}'.format(human_function_name) +
+            # Human homologs almost always have similar functional names, so leave out for now
+            # '\n\n**Human Functional Name:** {}'.format(human_function_name) +
             '\n\n**Homolog Location:** {}'.format(human_location)))
         hgnc_html_id = html.B('HGNC ID: ')
         hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
         omim_html_id = html.B('OMIM ID: ') 
         omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
 
-        return [mouse_md, 
+        return [html.P('\n\n'),
+               mouse_header,
+               mouse_md, 
                mgi_html_id, 
-               mgi_html_link, 
+               mgi_html_link,
+               html.P('\n\n'),
+               human_header,
                human_md, 
                hgnc_html_id, 
-               hgnc_html_link, 
-               html.P(),
+               hgnc_html_link,
+               html.P('\n'),
                omim_html_id,
                omim_html_link]
 
@@ -187,7 +202,7 @@ marker_settings = {
 }
 
 tabs_styles = {
-    'height': '44px'
+    'height': '38px'
 }
 tab_style = {
     'borderBottom': '1px solid #d6d6d6',
@@ -210,11 +225,24 @@ tab_plot_volcano = dcc.Tab(
                 id='volcano-plot',
                 config={
                     "displaylogo": False,
-                    'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
+                    'modeBarButtonsToRemove': [
+                        'pan2d', 
+                        'zoomIn2d',
+                        'zoomOut2d', 
+                        'autoScale2d', 
+                        'resetScale2d', 
+                        'hoverCompareCartesian', 
+                        'hoverClosestCartesian', 
+                        'toggleSpikelines',
+                        'select2d',
+                        'lasso2d',
+                    ]
                 },
-            ), 
-        ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
-        html.Div(id='gene-info-markdown-volcano', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top'})         
+                style={'height':'80vh'} # To make graph adust with window
+            )
+        ], style={'width':'70%', 'display':'inline-block'}),
+        # ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
+        html.Div(id='gene-info-markdown-volcano', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'10px'})         
     ], style=tab_style, selected_style=tab_selected_style
 )
 tab_plot_ma = dcc.Tab(
@@ -226,10 +254,10 @@ tab_plot_ma = dcc.Tab(
                 config={
                     "displaylogo": False,
                     'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
-                },
+                },style={'height': '80vh'} # To make graph adust with window
             ),
         ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
-        html.Div(id='gene-info-markdown-ma', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top'})  
+        html.Div(id='gene-info-markdown-ma', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'20px'})  
     ], style=tab_style, selected_style=tab_selected_style
 )
 app.layout = html.Div(
@@ -240,12 +268,40 @@ app.layout = html.Div(
             children=[
                 html.Div(
                     children=[
+                       dcc.Upload(
+                            id='upload-data',
+                            children=html.Div([
+                                'Drag and Drop or ',
+                                html.A('Select File'),
+                            ]),
+                            style={
+                                'width': '80%',
+                                'height': '10vh',
+                                # 'verticalAlign': 'middle',
+                                'lineHeight': '17px',
+                                'borderWidth': '1.5px',
+                                'borderStyle': 'dashed',
+                                'borderRadius': '5px',
+                                'textAlign': 'center',
+                                # 'padding-top': '20px'
+                                'padding': '13px'
+                                # 'margin': '10px',
+                            },
+                            # Allow multiple files to be uploaded
+                            # multiple=True
+                            multiple=False,
+                        ),
+                        html.P('Highlight Genes', style={'font-size':'120%', 'padding-top':'50px'}),
                         dcc.Dropdown(
                             id='gene-dropdown',
                             multi=True,
-                            style={'resize': 'none'}  # Doesn't work!!
+                            # style={'resize': 'none'}  # Doesn't work!!
                         ),
-                    ], style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px'},
+                     
+                        # Invisible Div to hold JSON-ified input DataFrame
+                        html.Div(id='df-holder', style={'display': 'none'}),
+
+                    ], style={'width':'15%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px', 'padding-top':'0px'},
                 ),
                 html.Div(
                     children=[
@@ -256,76 +312,98 @@ app.layout = html.Div(
                                 tab_plot_ma,
                             ], style=tabs_styles,
                         ),
-                    ], style={'width':'80%', 'display':'inline-block', 'vertical-align':'top'},
+                    ], style={'width':'85%', 'display':'inline-block'},
                 ),
-                html.Div(id='output-container'),
-                dcc.Upload(
-                    id='upload-data',
-                    children=html.Div([
-                        'Drag and Drop or ',
-                        html.A('Select File'),
-                    ]),
-                    style={
-                        'width': '100%',
-                        'height': '60px',
-                        'lineHeight': '60px',
-                        'borderWidth': '1px',
-                        'borderStyle': 'dashed',
-                        'borderRadius': '5px',
-                        'textAlign': 'center',
-                        'margin': '10px'
-                    },
-                    # Allow multiple files to be uploaded
-                    # multiple=True
-                    multiple=False,
-                )
             ],
-        ), html.Div(id='output-data-upload'),
+        ), 
     ]
 )
 
+@app.callback(
+    Output('df-holder', 'children'),
+    [Input('upload-data', 'contents')],
+    [State('upload-data', 'filename'),
+     State('upload-data', 'last_modified')]
+)
+def handle_df(contents, filename, last_modified):
+    if contents is not None:
+        df = parse_file_contents(contents, filename, last_modified)
+        df = df.rename(index=str, columns={"symbol": "gene_ID"})
+    return df.to_json() #!!only returning df head for testing
+
+# Populate gene dropdown menu from imported RNAseq file
+@app.callback(
+    Output('gene-dropdown', 'options'),
+    [Input('df-holder', 'children')])
+def populate_gene_dropdown(df_json):
+    df = pd.read_json(df_json)
+    dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
+    return dropdown_options
+
 # Generate volcano and MA plots from imported RNAseq file
 @app.callback([
-            Output('volcano-plot', 'figure'),
-            Output('ma-plot', 'figure'),
-            # Flush Gene Info panel when importing new file
-            Output('gene-info-markdown-volcano', 'children'),
-            Output('gene-info-markdown-ma', 'children'), 
-            Output('gene-dropdown', 'options')
-       ],
-      [Input('upload-data', 'contents')],
-      [State('upload-data', 'filename'), State('upload-data', 'last_modified')])
-def populate_graphs(contents, name, date):
-    if contents is not None:
-        df = parse_file_contents(contents, name, date)
+    Output('volcano-plot', 'figure'),
+    Output('ma-plot', 'figure')],
+   [Input('df-holder', 'children'), 
+    Input('gene-dropdown', 'value')])
+def populate_graphs(df_json, dropdown_value):
+    if df_json is not None:
+        # !!could remove markers in dropdown from df to prevent overplotting
+        df = pd.read_json(df_json) # !!This is likely a very time-consuming step - can I avoid this altogether?
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
-        volc_figure={
-            'data':[
-                go.Scattergl(
-                    x=df['log2FoldChange'],
-                    y=-np.log10(df['padj']),
-                    mode='markers',
-                    text=df['gene_ID'],
-                    marker=marker_settings,
+
+        v_traces = [go.Scattergl(
+            x=df['log2FoldChange'],
+            y=-np.log10(df['padj']),
+            mode='markers',
+            text=df['gene_ID'],
+            name='All Genes',
+            marker=marker_settings)]
+
+        m_traces = [go.Scattergl(
+            x=np.log10(df['baseMean']),
+            y=df['log2FoldChange'],
+            mode='markers',
+            text=df['gene_ID'],
+            name='All Genes',
+            marker=marker_settings)]
+
+        if dropdown_value is not None:
+            for gene_name in dropdown_value:
+                gene_slice_df = df[df['gene_ID'] == gene_name]
+                v_traces.append(
+                    go.Scattergl(
+                        x=gene_slice_df['log2FoldChange'],
+                        y=-np.log10(gene_slice_df['padj']),
+                        mode='markers',
+                        text=gene_slice_df['gene_ID'],
+                        marker={'size':11, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
+                        name=gene_name
+                    )
                 )
-            ],
-            'layout':go.Layout(
-                hovermode='closest',
-                title='Significance vs. Effect Size',
-                xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, #!!Figure out how to change size
-                yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
-            )
-        }
+                m_traces.append(
+                    go.Scattergl(
+                        x=np.log10(gene_slice_df['baseMean']),
+                        y=gene_slice_df['log2FoldChange'],
+                        mode='markers',
+                        text=gene_slice_df['gene_ID'],
+                        marker={'size':11, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
+                        name=gene_name
+                    )  
+                )
+
+        volc_figure = {
+        'data': v_traces,
+        'layout':go.Layout(
+            # Allows points to be highlighted when selected using built-in plot features 
+            # clickmode='event+select',
+            hovermode='closest',
+            title='Significance vs. Effect Size',
+            xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, #!!Figure out how to change size
+            yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},)}
+
         ma_figure={
-            'data':[
-                go.Scattergl(
-                    x=np.log10(df['baseMean']),
-                    y=df['log2FoldChange'],
-                    mode='markers',
-                    text=df['gene_ID'],
-                    marker=marker_settings
-                )
-            ],
+            'data':m_traces,
             'layout':go.Layout(
                 hovermode='closest',
                 title='Log Ratio (M) vs. Mean Average (A)',
@@ -333,38 +411,32 @@ def populate_graphs(contents, name, date):
                 yaxis={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'},
             )
         }
-        # Generate list of dictionaries for populating gene dropdown menu
-        dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
-        # Refresh gene info panels when loading new files
-        return volc_figure, ma_figure, [], [], dropdown_options
 
-# Gene menu callback
-@app.callback(
-    dash.dependencies.Output('output-container', 'children'),
-    [dash.dependencies.Input('gene-dropdown', 'value')])
-def update_output(value):
-    return 'You have selected "{}"'.format(value)
-
+    return volc_figure, ma_figure
 
 # Populate gene information panel from volcano plot click
 @app.callback(
     Output('gene-info-markdown-volcano', 'children'),
-    [Input('volcano-plot', 'clickData')])
-def update_gene_info_v(vclick):
-    if vclick:
-        return generate_gene_info(clickData=vclick, x_name='log₂FoldChange', y_name='-log₁₀(padj)')
+    [Input('volcano-plot', 'clickData'), 
+     Input('df-holder', 'children')])
+def update_gene_info_volcano(click, df_json):
+    df = pd.read_json(df_json)
+    if click:
+        return generate_gene_info(clickData=click, df=df)
     else:
         return generate_gene_info('default')
 
 # Populate gene information panel from MA plot click
 @app.callback(
     Output('gene-info-markdown-ma', 'children'),
-    [Input('ma-plot', 'clickData')])
-def update_gene_info_m(mclick):
-    if mclick:
-        return generate_gene_info(clickData=mclick, x_name='log₁₀(baseMean)', y_name='log₂FoldChange')
+    [Input('ma-plot', 'clickData'), 
+     Input('df-holder', 'children')])
+def update_gene_info_ma(click, df_json):
+    df = pd.read_json(df_json)
+    if click:
+        return generate_gene_info(clickData=click, df=df)
     else:
         return generate_gene_info('default')
 
 if __name__ == '__main__':
-    app.run_server(debug=False, port=8050)
+    app.run_server()

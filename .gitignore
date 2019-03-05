@@ -6,3 +6,4 @@ Resources
 .~lock*
 activate
 *.swp
+*test*.py
