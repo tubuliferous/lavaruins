@@ -7,3 +7,4 @@ Resources
 activate
 *.swp
 *test*.py
+*cache-directory

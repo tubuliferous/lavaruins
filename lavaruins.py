@@ -9,6 +9,7 @@ import pandas as pd
 import base64
 import io
 import dash_auth
+from flask_caching import Cache
 # import json
 
 # For sharing clickData across multiple graphs:
@@ -17,6 +18,12 @@ import dash_auth
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+cache = Cache(app.server, config={
+    'CACHE_TYPE': 'filesystem',
+    'CACHE_DIR': 'cache-directory'
+})
+
+TIMEOUT = 6000
 
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
@@ -283,9 +290,9 @@ app.layout = html.Div(
                                 'borderStyle': 'dashed',
                                 'borderRadius': '5px',
                                 'textAlign': 'center',
-                                # 'padding-top': '20px'
-                                'padding': '13px'
-                                # 'margin': '10px',
+                                'padding-top': '10px',
+                                # 'padding': '1px',
+                                'margin': '17px',
                             },
                             # Allow multiple files to be uploaded
                             # multiple=True
@@ -325,11 +332,17 @@ app.layout = html.Div(
     [State('upload-data', 'filename'),
      State('upload-data', 'last_modified')]
 )
+@cache.memoize()
 def handle_df(contents, filename, last_modified):
     if contents is not None:
         df = parse_file_contents(contents, filename, last_modified)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
     return df.to_json() #!!only returning df head for testing
+
+# Need this function to create memoized store of data returned in handle_df()
+# @cache.memoize(timeout=TIMEOUT)
+# def memo_dataframe():
+    # return pd.read_json(handle_df())
 
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
@@ -337,6 +350,7 @@ def handle_df(contents, filename, last_modified):
     [Input('df-holder', 'children')])
 def populate_gene_dropdown(df_json):
     df = pd.read_json(df_json)
+    # df = memo_dataframe()
     dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
     return dropdown_options
 
@@ -350,6 +364,7 @@ def populate_graphs(df_json, dropdown_value):
     if df_json is not None:
         # !!could remove markers in dropdown from df to prevent overplotting
         df = pd.read_json(df_json) # !!This is likely a very time-consuming step - can I avoid this altogether?
+        # df = memo_dataframe()
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
 
         v_traces = [go.Scattergl(
@@ -421,6 +436,7 @@ def populate_graphs(df_json, dropdown_value):
      Input('df-holder', 'children')])
 def update_gene_info_volcano(click, df_json):
     df = pd.read_json(df_json)
+    # df = memo_dataframe()
     if click:
         return generate_gene_info(clickData=click, df=df)
     else:
@@ -433,6 +449,7 @@ def update_gene_info_volcano(click, df_json):
      Input('df-holder', 'children')])
 def update_gene_info_ma(click, df_json):
     df = pd.read_json(df_json)
+    # df = memo_dataframe()
     if click:
         return generate_gene_info(clickData=click, df=df)
     else:
