@@ -22,6 +22,7 @@ import json
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
 # CACHE_CONFIG = {
 #     # try 'filesystem' if you don't want to setup redis
 #     'CACHE_TYPE': 'redis',
@@ -275,6 +276,7 @@ tab_plot_ma = dcc.Tab(
 )
 app.layout = html.Div(
     children=[
+        dcc.Store(id='session', storage_type='session'),
         html.Img(src='data:image/png;base64,{}'.format(encoded_icon.decode()), style={'width': '60px', 'display':'inline-block'}),
         html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline-block'}),
         html.Div(
@@ -334,7 +336,8 @@ app.layout = html.Div(
 )
 
 @app.callback(
-    Output('df-holder', 'children'),
+    Output('session', 'data'),
+    # Output('df-holder', 'children'),
     [Input('upload-data', 'contents')],
     [State('upload-data', 'filename'),
      State('upload-data', 'last_modified')]
@@ -353,7 +356,8 @@ def handle_df(contents, filename, last_modified):
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
     Output('gene-dropdown', 'options'),
-    [Input('df-holder', 'children')])
+    # [Input('df-holder', 'children')])
+    [Input('session', 'data')])
 def populate_gene_dropdown(df_json):
     df = pd.read_json(df_json)
     # df = memo_dataframe()
@@ -364,7 +368,8 @@ def populate_gene_dropdown(df_json):
 @app.callback([
     Output('volcano-plot', 'figure'),
     Output('ma-plot', 'figure')],
-   [Input('df-holder', 'children'), 
+   # [Input('df-holder', 'children'), 
+   [Input('session', 'data'), 
     Input('gene-dropdown', 'value')])
 def populate_graphs(df_json, dropdown_value):
     if df_json is not None:
@@ -439,7 +444,8 @@ def populate_graphs(df_json, dropdown_value):
 @app.callback(
     Output('gene-info-markdown-volcano', 'children'),
     [Input('volcano-plot', 'clickData'), 
-     Input('df-holder', 'children')])
+     # Input('df-holder', 'children')])
+     Input('session', 'data')])
 def update_gene_info_volcano(click, df_json):
     df = pd.read_json(df_json)
     # df = memo_dataframe()
@@ -452,7 +458,8 @@ def update_gene_info_volcano(click, df_json):
 @app.callback(
     Output('gene-info-markdown-ma', 'children'),
     [Input('ma-plot', 'clickData'), 
-     Input('df-holder', 'children')])
+     # Input('df-holder', 'children')])
+     Input('session', 'data')])
 def update_gene_info_ma(click, df_json):
     df = pd.read_json(df_json)
     # df = memo_dataframe()
@@ -460,13 +467,6 @@ def update_gene_info_ma(click, df_json):
         return generate_gene_info(clickData=click, df=df)
     else:
         return generate_gene_info('default')
-
-
-@app.callback(
-    Output('click-data', 'children'),
-    [Input('volcano-plot', 'clickData')])
-def display_click_data(clickData):
-    return json.dumps(clickData, indent=2)
 
 
 if __name__ == '__main__':
