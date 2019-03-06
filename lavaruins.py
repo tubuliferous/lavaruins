@@ -9,7 +9,11 @@ import pandas as pd
 import base64
 import io
 import dash_auth
-from flask_caching import Cache
+# from flask_caching import Cache
+# import os
+import json
+# import redis
+
 # import json
 
 # For sharing clickData across multiple graphs:
@@ -18,19 +22,21 @@ from flask_caching import Cache
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-cache = Cache(app.server, config={
-    'CACHE_TYPE': 'filesystem',
-    'CACHE_DIR': 'cache-directory'
-})
-
-TIMEOUT = 6000
+# CACHE_CONFIG = {
+#     # try 'filesystem' if you don't want to setup redis
+#     'CACHE_TYPE': 'redis',
+#     'CACHE_REDIS_URL': os.environ.get('REDIS_URL', 'localhost:6379')
+# }
+# cache = Cache()
+# cache.init_app(app.server, config=CACHE_CONFIG)
+# TIMEOUT = 6000
 
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
 auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
 server = app.server
 
-# Annotation imports
+# Annotation imports global variable (global for server speed)
 mgi_annos = pd.read_csv('Data/homologs_expanded_synonyms.tsv', sep='\t')
 
 # Icon setup
@@ -322,7 +328,8 @@ app.layout = html.Div(
                     ], style={'width':'85%', 'display':'inline-block'},
                 ),
             ],
-        ), 
+        ),
+        html.Div(id='click-data')
     ]
 )
 
@@ -332,7 +339,6 @@ app.layout = html.Div(
     [State('upload-data', 'filename'),
      State('upload-data', 'last_modified')]
 )
-@cache.memoize()
 def handle_df(contents, filename, last_modified):
     if contents is not None:
         df = parse_file_contents(contents, filename, last_modified)
@@ -454,6 +460,14 @@ def update_gene_info_ma(click, df_json):
         return generate_gene_info(clickData=click, df=df)
     else:
         return generate_gene_info('default')
+
+
+@app.callback(
+    Output('click-data', 'children'),
+    [Input('volcano-plot', 'clickData')])
+def display_click_data(clickData):
+    return json.dumps(clickData, indent=2)
+
 
 if __name__ == '__main__':
     app.run_server()
