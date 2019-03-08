@@ -341,7 +341,7 @@ def handle_df(contents, filename, last_modified):
         df, basename = parse_file_contents(contents, filename, last_modified)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
         with open('data.json', 'w') as outfile:
-            df.to_json(session_id)
+            df.to_json('temp_data_files/' + session_id)
         return session_id, basename
 
 # Populate gene dropdown menu from imported RNAseq file
@@ -349,7 +349,7 @@ def handle_df(contents, filename, last_modified):
     Output('gene-dropdown', 'options'),
     [Input('session-id', 'children')])
 def populate_gene_dropdown(session_id):
-    df = pd.read_json(session_id)
+    df = pd.read_json('temp_data_files/' + session_id)
     dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
     return dropdown_options
 
@@ -361,7 +361,7 @@ def populate_gene_dropdown(session_id):
     Input('gene-dropdown', 'value')])
 def populate_graphs(session_id, dropdown_value):
     if session_id is not None:
-        df = pd.read_json(session_id)
+        df = pd.read_json('temp_data_files/' + session_id)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
 
         v_traces = [go.Scattergl(
@@ -432,7 +432,7 @@ def populate_graphs(session_id, dropdown_value):
     [Input('volcano-plot', 'clickData'), 
      Input('session-id', 'children')])
 def update_gene_info_volcano(click, session_id):
-    df = pd.read_json(session_id)
+    df = pd.read_json('temp_data_files/' + session_id)
     if click:
         return generate_gene_info(clickData=click, df=df)
     else:
@@ -444,7 +444,7 @@ def update_gene_info_volcano(click, session_id):
     [Input('ma-plot', 'clickData'), 
      Input('session-id', 'children')])
 def update_gene_info_ma(click, session_id):
-    df = pd.read_json(session_id)
+    df = pd.read_json('temp_data_files/' + session_id)
     if click:
         return generate_gene_info(clickData=click, df=df)
     else:
