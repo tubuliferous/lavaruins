@@ -10,10 +10,12 @@ import base64
 import io
 import dash_auth
 # from flask_caching import Cache
-import os
+# import os
 import uuid
-# import json
+import json
 # import redis
+import pickle
+
 
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -345,7 +347,9 @@ def handle_df(contents, filename, last_modified):
     if contents is not None:
         df = parse_file_contents(contents, filename, last_modified)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
-        df.to_csv(session_id)
+        # df.to_csv(session_id)
+        with open('data.json', 'w') as outfile:
+            df.to_json(session_id)
         return session_id
 
     # return df.to_json() # also save the df as a JSON-ified version in hidden Div
@@ -356,7 +360,7 @@ def handle_df(contents, filename, last_modified):
     [Input('session-id', 'children')])
     # [Input('df-holder', 'children')])
 def populate_gene_dropdown(session_id):
-    df = pd.read_csv(session_id)
+    df = pd.read_json(session_id)
     # df = pd.read_json(df_json)
     dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
     return dropdown_options
@@ -372,7 +376,7 @@ def populate_graphs(session_id, dropdown_value):
     if session_id is not None:
         # !!could remove markers in dropdown from df to prevent overplotting
         # df = pd.read_json(df_json) # !!This is likely a very time-consuming step - can I avoid this altogether?
-        df = pd.read_csv(session_id)
+        df = pd.read_json(session_id)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
 
         v_traces = [go.Scattergl(
@@ -443,7 +447,7 @@ def populate_graphs(session_id, dropdown_value):
     [Input('volcano-plot', 'clickData'), 
      Input('session-id', 'children')])
 def update_gene_info_volcano(click, session_id):
-    df = pd.read_csv(session_id)
+    df = pd.read_json(session_id)
     # df = pd.read_json(df_json)
     if click:
         return generate_gene_info(clickData=click, df=df)
@@ -456,7 +460,7 @@ def update_gene_info_volcano(click, session_id):
     [Input('ma-plot', 'clickData'), 
      Input('session-id', 'children')])
 def update_gene_info_ma(click, session_id):
-    df = pd.read_csv(session_id)
+    df = pd.read_json(session_id)
     if click:
         return generate_gene_info(clickData=click, df=df)
     else:
@@ -464,9 +468,9 @@ def update_gene_info_ma(click, session_id):
 
 # Interface additions to indicate "loading" to user
 # Dash CSS
-# app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
+app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
 # Loading screen CSS
-# app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
+app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
 
 if __name__ == '__main__':
     app.run_server()
