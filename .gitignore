@@ -8,3 +8,4 @@ activate
 *.swp
 *test*.py
 temp_data_files/*
+!temp_data_files/.gitkeep 
