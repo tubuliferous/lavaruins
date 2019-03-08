@@ -9,30 +9,29 @@ import pandas as pd
 import base64
 import io
 import dash_auth
-# from flask_caching import Cache
-# import os
 import uuid
 import json
-# import redis
 import pickle
-
+# import os
+# from flask_caching import Cache
 
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
+# Loading screen CSS
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+# Primary CSS
+app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
+# Icon setup
+icon_filepath = 'Data/volcano.png'
+encoded_icon = base64.b64encode(open(icon_filepath, 'rb').read())
 
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
 auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
 server = app.server
 
-# Annotation imports global variable (global for server speed)
+# Global homolog, synonym, etc. annotation import
 mgi_annos = pd.read_csv('Data/homologs_expanded_synonyms.tsv', sep='\t')
-
-# Icon setup
-icon_filepath = 'Data/volcano.png'
-encoded_icon = base64.b64encode(open(icon_filepath, 'rb').read())
 
 # Algorithmically determine the smallest and largest float values
 #   - For use with giving value to zero-valued p-values 
@@ -100,8 +99,6 @@ def generate_gene_info(clickData, df=None):
         return default_text
     else:
         gene_name = clickData['points'][0]['text']
-        # x_value = float(clickData['points'][0]['x'])
-        # y_value = float(clickData['points'][0]['y'])
 
         padj = df[df['gene_ID'] == gene_name]['padj'].values[0]
         log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
@@ -145,10 +142,6 @@ def generate_gene_info(clickData, df=None):
         except:
             human_synonyms = 'NA'
         # Human homologs almost always have similar functional names, so leave out for now
-        # try:
-        #     human_function_name = human_homolog['Name'].values[0]
-        # except:
-        #     human_function_name = 'NA'
         try:
             human_location = human_homolog['Genetic Location'].values[0]
         except:
@@ -165,9 +158,9 @@ def generate_gene_info(clickData, df=None):
         mouse_md = dcc.Markdown(dedent('''''' +
             '\n\n**Gene Name**: *{}*'.format(gene_name) +
             '\n\n**Synonyms:** *{}*'.format(synonyms) +
-            '\n\n**-log₁₀(adjusted p-value):** {:4f}'.format(-np.log10(padj)) + 
-            '\n\n**log₁₀(base mean):** {:4f}'.format(np.log10(basemean)) +
-            '\n\n**log₂(fold change):** {:4f}'.format(log2foldchange) +
+            '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(-np.log10(padj)) + 
+            '\n\n**log₁₀(base mean):** {:3f}'.format(np.log10(basemean)) +
+            '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
             '\n\n**Location:** {}'.format(location) +
             '\n\n**Functional Name:** {}'.format(function_name)))
         mgi_html_id = html.B('MGI ID: ')
@@ -177,7 +170,6 @@ def generate_gene_info(clickData, df=None):
             '\n\n**Human Homolog Name**: *{}*'.format(human_homolog_name) +
             '\n\n**Human Synonyms:** *{}*'.format(human_synonyms) +
             # Human homologs almost always have similar functional names, so leave out for now
-            # '\n\n**Human Functional Name:** {}'.format(human_function_name) +
             '\n\n**Homolog Location:** {}'.format(human_location)))
         hgnc_html_id = html.B('HGNC ID: ')
         hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
@@ -206,7 +198,7 @@ def serve_layout():
             html.Div(id='session-id', style={'display': 'none'}),
             # dcc.Store(id='session', storage_type='session'),
             html.Img(src='data:image/png;base64,{}'.format(encoded_icon.decode()), style={'width': '60px', 'display':'inline-block'}),
-            html.H2('LavaRuins Differential Gene Expression Explorer Mark3', style={'display':'inline-block'}),
+            html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline-block'}),
             html.Div(
                 children=[
                     html.Div(
@@ -220,14 +212,12 @@ def serve_layout():
                                 style={
                                     'width': '80%',
                                     'height': '10vh',
-                                    # 'verticalAlign': 'middle',
                                     'lineHeight': '17px',
                                     'borderWidth': '1.5px',
                                     'borderStyle': 'dashed',
                                     'borderRadius': '5px',
                                     'textAlign': 'center',
                                     'padding-top': '10px',
-                                    # 'padding': '1px',
                                     'margin': '17px',
                                 },
                                 # Allow multiple files to be uploaded
@@ -238,12 +228,7 @@ def serve_layout():
                             dcc.Dropdown(
                                 id='gene-dropdown',
                                 multi=True,
-                                # style={'resize': 'none'}  # Doesn't work!!
                             ),
-                         
-                            # Invisible Div to hold JSON-ified input DataFrame
-                            html.Div(id='df-holder', style={'display': 'none'}),
-
                         ], style={'width':'15%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px', 'padding-top':'0px'},
                     ),
                     html.Div(
@@ -334,7 +319,6 @@ app.layout = serve_layout()
 
 #Disk write callback and set session ID
 @app.callback(
-    # Output('session', 'data'),
     Output('session-id', 'children'),
     [Input('upload-data', 'contents')],
     [State('upload-data', 'filename'),
@@ -347,21 +331,16 @@ def handle_df(contents, filename, last_modified):
     if contents is not None:
         df = parse_file_contents(contents, filename, last_modified)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
-        # df.to_csv(session_id)
         with open('data.json', 'w') as outfile:
             df.to_json(session_id)
         return session_id
-
-    # return df.to_json() # also save the df as a JSON-ified version in hidden Div
 
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
     Output('gene-dropdown', 'options'),
     [Input('session-id', 'children')])
-    # [Input('df-holder', 'children')])
 def populate_gene_dropdown(session_id):
     df = pd.read_json(session_id)
-    # df = pd.read_json(df_json)
     dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
     return dropdown_options
 
@@ -370,12 +349,9 @@ def populate_gene_dropdown(session_id):
     Output('volcano-plot', 'figure'),
     Output('ma-plot', 'figure')],
    [Input('session-id', 'children'),
-   # [Input('df-holder', 'children'), 
     Input('gene-dropdown', 'value')])
 def populate_graphs(session_id, dropdown_value):
     if session_id is not None:
-        # !!could remove markers in dropdown from df to prevent overplotting
-        # df = pd.read_json(df_json) # !!This is likely a very time-consuming step - can I avoid this altogether?
         df = pd.read_json(session_id)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
 
@@ -423,10 +399,10 @@ def populate_graphs(session_id, dropdown_value):
         'data': v_traces,
         'layout':go.Layout(
             # Allows points to be highlighted when selected using built-in plot features 
-            # clickmode='event+select',
+            # Consider using "clickmode='event+select'" for box selection
             hovermode='closest',
             title='Significance vs. Effect Size',
-            xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, #!!Figure out how to change size
+            xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, # !!Figure out how to change size
             yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},)}
 
         ma_figure={
@@ -434,7 +410,7 @@ def populate_graphs(session_id, dropdown_value):
             'layout':go.Layout(
                 hovermode='closest',
                 title='Log Ratio (M) vs. Mean Average (A)',
-                xaxis={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'}, #!!Figure out how to change size
+                xaxis={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'}, # !!Figure out how to change size
                 yaxis={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'},
             )
         }
@@ -448,7 +424,6 @@ def populate_graphs(session_id, dropdown_value):
      Input('session-id', 'children')])
 def update_gene_info_volcano(click, session_id):
     df = pd.read_json(session_id)
-    # df = pd.read_json(df_json)
     if click:
         return generate_gene_info(clickData=click, df=df)
     else:
@@ -466,11 +441,6 @@ def update_gene_info_ma(click, session_id):
     else:
         return generate_gene_info('default')
 
-# Interface additions to indicate "loading" to user
-# Dash CSS
-app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
-# Loading screen CSS
-app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
 
 if __name__ == '__main__':
     app.run_server()
