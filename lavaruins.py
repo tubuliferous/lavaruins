@@ -464,9 +464,9 @@ def update_gene_info_ma(click, session_id):
 
 # Interface additions to indicate "loading" to user
 # Dash CSS
-app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
+# app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
 # Loading screen CSS
-app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
+# app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
 
 if __name__ == '__main__':
     app.run_server()
