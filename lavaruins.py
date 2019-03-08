@@ -333,6 +333,12 @@ app.layout = html.Div(
     ]
 )
 
+# Cache retrieval of dataframe from hidden Div
+@cache.memoize(timeout=timeout)
+def retrieve_df():
+    pass
+
+
 
 @app.callback(
     # Output('session', 'data'),
@@ -341,12 +347,20 @@ app.layout = html.Div(
     [State('upload-data', 'filename'),
      State('upload-data', 'last_modified')]
 )
-@cache.memoize(timeout=timeout)
+# @cache.memoize(timeout=timeout)
 def handle_df(contents, filename, last_modified):
     if contents is not None:
         df = parse_file_contents(contents, filename, last_modified)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
-    return df.to_json() #!!only returning df head for testing
+        @cache.memoize(timeout=timeout)
+        def global_df():
+            return df
+    return df.to_json() 
+
+
+
+
+
 
 # Need this function to create memoized store of data returned in handle_df()
 # @cache.memoize(timeout=TIMEOUT)
@@ -358,9 +372,9 @@ def handle_df(contents, filename, last_modified):
     Output('gene-dropdown', 'options'),
     [Input('df-holder', 'children')])
     # [Input('session', 'data')])
+@cache.memoize(timeout=timeout)
 def populate_gene_dropdown(df_json):
     df = pd.read_json(df_json)
-    # df = memo_dataframe()
     dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
     return dropdown_options
 
@@ -371,6 +385,7 @@ def populate_gene_dropdown(df_json):
    [Input('df-holder', 'children'), 
    # [Input('session', 'data'), 
     Input('gene-dropdown', 'value')])
+@cache.memoize(timeout=timeout)
 def populate_graphs(df_json, dropdown_value):
     if df_json is not None:
         # !!could remove markers in dropdown from df to prevent overplotting
@@ -446,6 +461,7 @@ def populate_graphs(df_json, dropdown_value):
     [Input('volcano-plot', 'clickData'), 
      Input('df-holder', 'children')])
      # Input('session', 'data')])
+@cache.memoize(timeout=timeout)
 def update_gene_info_volcano(click, df_json):
     df = pd.read_json(df_json)
     # df = memo_dataframe()
@@ -460,6 +476,7 @@ def update_gene_info_volcano(click, df_json):
     [Input('ma-plot', 'clickData'), 
      Input('df-holder', 'children')])
      # Input('session', 'data')])
+@cache.memoize(timeout=timeout)     
 def update_gene_info_ma(click, df_json):
     df = pd.read_json(df_json)
     # df = memo_dataframe()
