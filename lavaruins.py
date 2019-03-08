@@ -12,6 +12,7 @@ import dash_auth
 import uuid
 import json
 import pickle
+import ntpath
 # import os
 # from flask_caching import Cache
 
@@ -68,6 +69,11 @@ def find_float_limits():
 
     return last_minimum, last_maximum
 
+# Get base name from file path on any platform
+def path_leaf(path):
+    head, tail = ntpath.split(path)
+    return tail or ntpath.basename(head)
+
 # File input
 def parse_file_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
@@ -85,7 +91,7 @@ def parse_file_contents(contents, filename, date):
         # smallest_float = find_float_limits()[0]
         smallest_float = 1.00E-307
         df.loc[df['padj']==0, 'padj'] = smallest_float
-        return df
+        return df, 'Filename: ' + path_leaf(filename)
     except Exception as e:
         print(e)
         return html.Div([
@@ -190,7 +196,6 @@ def generate_gene_info(clickData, df=None):
                omim_html_id,
                omim_html_link]
 
-# Layout must be set up as function to get session ID
 def serve_layout():
     return html.Div(
         children=[
@@ -220,16 +225,17 @@ def serve_layout():
                                     'padding-top': '10px',
                                     'margin': '17px',
                                 },
-                                # Allow multiple files to be uploaded
-                                # multiple=True
+                                # Don't allow multiple files to be uploaded
                                 multiple=False,
                             ),
-                            html.P('Highlight Genes', style={'font-size':'120%', 'padding-top':'50px'}),
+                            html.P(id='filename'),
+                            html.P('Highlight Genes', style={'font-size':'120%', 'padding-top':'25px'}),
                             dcc.Dropdown(
                                 id='gene-dropdown',
                                 multi=True,
                             ),
-                        ], style={'width':'15%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px', 'padding-top':'0px'},
+                        ], 
+                        style={'width':'15%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px', 'padding-top':'0px'},
                     ),
                     html.Div(
                         children=[
@@ -244,7 +250,6 @@ def serve_layout():
                     ),
                 ],
             ),
-            html.Div(id='click-data')
         ]
     )
 
@@ -319,7 +324,8 @@ app.layout = serve_layout()
 
 #Disk write callback and set session ID
 @app.callback(
-    Output('session-id', 'children'),
+    [Output('session-id', 'children'),
+     Output('filename', 'children')],
     [Input('upload-data', 'contents')],
     [State('upload-data', 'filename'),
      State('upload-data', 'last_modified')]
@@ -329,11 +335,11 @@ def handle_df(contents, filename, last_modified):
     # change that will trigger the other callbacks 
     session_id = str(uuid.uuid4())
     if contents is not None:
-        df = parse_file_contents(contents, filename, last_modified)
+        df, basename = parse_file_contents(contents, filename, last_modified)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
         with open('data.json', 'w') as outfile:
             df.to_json(session_id)
-        return session_id
+        return session_id, basename
 
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
