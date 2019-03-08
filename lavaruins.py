@@ -9,26 +9,16 @@ import pandas as pd
 import base64
 import io
 import dash_auth
-from flask_caching import Cache
+# from flask_caching import Cache
 import os
+import uuid
 # import json
 # import redis
-
-# For sharing clickData across multiple graphs:
-# https://gist.github.com/shawkinsl/22a0f4e0bf519330b92b7e99b3cfee8a
 
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-cache = Cache(app.server, config={
-    # try 'filesystem' if you don't want to setup redis
-    'CACHE_TYPE': 'redis',
-    'CACHE_REDIS_URL': os.environ.get('REDIS_URL', '')
-})
-app.config.suppress_callback_exceptions = True
-timeout=1200
-
 
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
@@ -206,6 +196,71 @@ def generate_gene_info(clickData, df=None):
                omim_html_id,
                omim_html_link]
 
+# Layout must be set up as function to get session ID
+def serve_layout():
+    return html.Div(
+        children=[
+            # Hidden Div to store session
+            html.Div(id='session-id', style={'display': 'none'}),
+            # dcc.Store(id='session', storage_type='session'),
+            html.Img(src='data:image/png;base64,{}'.format(encoded_icon.decode()), style={'width': '60px', 'display':'inline-block'}),
+            html.H2('LavaRuins Differential Gene Expression Explorer Mark3', style={'display':'inline-block'}),
+            html.Div(
+                children=[
+                    html.Div(
+                        children=[
+                           dcc.Upload(
+                                id='upload-data',
+                                children=html.Div([
+                                    'Drag and Drop or ',
+                                    html.A('Select File'),
+                                ]),
+                                style={
+                                    'width': '80%',
+                                    'height': '10vh',
+                                    # 'verticalAlign': 'middle',
+                                    'lineHeight': '17px',
+                                    'borderWidth': '1.5px',
+                                    'borderStyle': 'dashed',
+                                    'borderRadius': '5px',
+                                    'textAlign': 'center',
+                                    'padding-top': '10px',
+                                    # 'padding': '1px',
+                                    'margin': '17px',
+                                },
+                                # Allow multiple files to be uploaded
+                                # multiple=True
+                                multiple=False,
+                            ),
+                            html.P('Highlight Genes', style={'font-size':'120%', 'padding-top':'50px'}),
+                            dcc.Dropdown(
+                                id='gene-dropdown',
+                                multi=True,
+                                # style={'resize': 'none'}  # Doesn't work!!
+                            ),
+                         
+                            # Invisible Div to hold JSON-ified input DataFrame
+                            html.Div(id='df-holder', style={'display': 'none'}),
+
+                        ], style={'width':'15%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px', 'padding-top':'0px'},
+                    ),
+                    html.Div(
+                        children=[
+                            dcc.Tabs(
+                                id='plot-tabs',
+                                children=[
+                                    tab_plot_volcano,
+                                    tab_plot_ma,
+                                ], style=tabs_styles,
+                            ),
+                        ], style={'width':'85%', 'display':'inline-block'},
+                    ),
+                ],
+            ),
+            html.Div(id='click-data')
+        ]
+    )
+
 # Basic app layout and plots 
 marker_settings = {
     'color':'black',
@@ -272,91 +327,37 @@ tab_plot_ma = dcc.Tab(
         html.Div(id='gene-info-markdown-ma', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'20px'})  
     ], style=tab_style, selected_style=tab_selected_style
 )
-app.layout = html.Div(
-    children=[
-        # dcc.Store(id='session', storage_type='session'),
-        html.Img(src='data:image/png;base64,{}'.format(encoded_icon.decode()), style={'width': '60px', 'display':'inline-block'}),
-        html.H2('LavaRuins Differential Gene Expression Explorer Mark2', style={'display':'inline-block'}),
-        html.Div(
-            children=[
-                html.Div(
-                    children=[
-                       dcc.Upload(
-                            id='upload-data',
-                            children=html.Div([
-                                'Drag and Drop or ',
-                                html.A('Select File'),
-                            ]),
-                            style={
-                                'width': '80%',
-                                'height': '10vh',
-                                # 'verticalAlign': 'middle',
-                                'lineHeight': '17px',
-                                'borderWidth': '1.5px',
-                                'borderStyle': 'dashed',
-                                'borderRadius': '5px',
-                                'textAlign': 'center',
-                                'padding-top': '10px',
-                                # 'padding': '1px',
-                                'margin': '17px',
-                            },
-                            # Allow multiple files to be uploaded
-                            # multiple=True
-                            multiple=False,
-                        ),
-                        html.P('Highlight Genes', style={'font-size':'120%', 'padding-top':'50px'}),
-                        dcc.Dropdown(
-                            id='gene-dropdown',
-                            multi=True,
-                            # style={'resize': 'none'}  # Doesn't work!!
-                        ),
-                     
-                        # Invisible Div to hold JSON-ified input DataFrame
-                        html.Div(id='df-holder', style={'display': 'none'}),
 
-                    ], style={'width':'15%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px', 'padding-top':'0px'},
-                ),
-                html.Div(
-                    children=[
-                        dcc.Tabs(
-                            id='plot-tabs',
-                            children=[
-                                tab_plot_volcano,
-                                tab_plot_ma,
-                            ], style=tabs_styles,
-                        ),
-                    ], style={'width':'85%', 'display':'inline-block'},
-                ),
-            ],
-        ),
-        html.Div(id='click-data')
-    ]
-)
+app.layout = serve_layout()
 
-# Cache dataframe stored in hidden Div as json
-@cache.memoize(timeout=timeout)
-def df_unjson(df_json):
-    return pd.read_json(df_json)
-
+#Disk write callback and set session ID
 @app.callback(
     # Output('session', 'data'),
-    Output('df-holder', 'children'),
+    Output('session-id', 'children'),
     [Input('upload-data', 'contents')],
     [State('upload-data', 'filename'),
      State('upload-data', 'last_modified')]
 )
 def handle_df(contents, filename, last_modified):
+    # Need to put session ID here (I suspect) so that there is a 
+    # change that will trigger the other callbacks 
+    session_id = str(uuid.uuid4())
     if contents is not None:
         df = parse_file_contents(contents, filename, last_modified)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
-    return df.to_json() # also save the df as a JSON-ified version in hidden Div
+        df.to_csv(session_id)
+        return session_id
+
+    # return df.to_json() # also save the df as a JSON-ified version in hidden Div
 
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
     Output('gene-dropdown', 'options'),
-    [Input('df-holder', 'children')])
-def populate_gene_dropdown(df_json):
-    df = df_unjson(df_json)
+    [Input('session-id', 'children')])
+    # [Input('df-holder', 'children')])
+def populate_gene_dropdown(session_id):
+    df = pd.read_csv(session_id)
+    # df = pd.read_json(df_json)
     dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
     return dropdown_options
 
@@ -364,13 +365,14 @@ def populate_gene_dropdown(df_json):
 @app.callback([
     Output('volcano-plot', 'figure'),
     Output('ma-plot', 'figure')],
-   [Input('df-holder', 'children'), 
+   [Input('session-id', 'children'),
+   # [Input('df-holder', 'children'), 
     Input('gene-dropdown', 'value')])
-def populate_graphs(df_json, dropdown_value):
-    if df_json is not None:
+def populate_graphs(session_id, dropdown_value):
+    if session_id is not None:
         # !!could remove markers in dropdown from df to prevent overplotting
         # df = pd.read_json(df_json) # !!This is likely a very time-consuming step - can I avoid this altogether?
-        df = df_unjson(df_json)
+        df = pd.read_csv(session_id)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
 
         v_traces = [go.Scattergl(
@@ -439,12 +441,10 @@ def populate_graphs(df_json, dropdown_value):
 @app.callback(
     Output('gene-info-markdown-volcano', 'children'),
     [Input('volcano-plot', 'clickData'), 
-     Input('df-holder', 'children')])
-     # Input('session', 'data')])
-def update_gene_info_volcano(click, df_json):
-    df = df_unjson(df_json)
+     Input('session-id', 'children')])
+def update_gene_info_volcano(click, session_id):
+    df = pd.read_csv(session_id)
     # df = pd.read_json(df_json)
-    # df = memo_dataframe()
     if click:
         return generate_gene_info(clickData=click, df=df)
     else:
@@ -454,12 +454,9 @@ def update_gene_info_volcano(click, df_json):
 @app.callback(
     Output('gene-info-markdown-ma', 'children'),
     [Input('ma-plot', 'clickData'), 
-     Input('df-holder', 'children')])
-     # Input('session', 'data')])
-def update_gene_info_ma(click, df_json):
-    df = df_unjson(df_json)
-    # df = pd.read_json(df_json)
-    # df = memo_dataframe()
+     Input('session-id', 'children')])
+def update_gene_info_ma(click, session_id):
+    df = pd.read_csv(session_id)
     if click:
         return generate_gene_info(clickData=click, df=df)
     else:
