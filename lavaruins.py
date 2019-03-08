@@ -10,27 +10,25 @@ import base64
 import io
 import dash_auth
 from flask_caching import Cache
-# import os
-import json
-# import redis
-
+import os
 # import json
+# import redis
 
 # For sharing clickData across multiple graphs:
 # https://gist.github.com/shawkinsl/22a0f4e0bf519330b92b7e99b3cfee8a
 
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-# CACHE_CONFIG = {
-#     # try 'filesystem' if you don't want to setup redis
-#     'CACHE_TYPE': 'redis',
-#     'CACHE_REDIS_URL': os.environ.get('REDIS_URL', 'localhost:6379')
-# }
-# cache = Cache()
-# cache.init_app(app.server, config=CACHE_CONFIG)
-# TIMEOUT = 6000
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+cache = Cache(app.server, config={
+    # try 'filesystem' if you don't want to setup redis
+    'CACHE_TYPE': 'redis',
+    'CACHE_REDIS_URL': os.environ.get('REDIS_URL', '')
+})
+app.config.suppress_callback_exceptions = True
+timeout=1200
+
 
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
@@ -335,6 +333,7 @@ app.layout = html.Div(
     ]
 )
 
+
 @app.callback(
     # Output('session', 'data'),
     Output('df-holder', 'children'),
@@ -342,6 +341,7 @@ app.layout = html.Div(
     [State('upload-data', 'filename'),
      State('upload-data', 'last_modified')]
 )
+@cache.memoize(timeout=timeout)
 def handle_df(contents, filename, last_modified):
     if contents is not None:
         df = parse_file_contents(contents, filename, last_modified)
