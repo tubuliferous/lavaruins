@@ -10,9 +10,10 @@ import base64
 import io
 import dash_auth
 import uuid
-import json
-import pickle
+# import json
+# import pickle
 import ntpath
+# import math
 # import os
 # from flask_caching import Cache
 
@@ -89,12 +90,8 @@ def parse_file_contents(contents, filename, date):
             # Assume that the user uploaded a TSV file 
         elif '.tsv' in filename:
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), sep='\t')
-
-        # !!Hack: set adjusted p-values beyond numerical precision of Excel
-        # smallest_float = find_float_limits()[0]
-        smallest_float = 1.00E-307
-        df.loc[df['padj']==0, 'padj'] = smallest_float
-        return df, 'Filename: ' + path_leaf(filename)
+        
+        return df, path_leaf(filename)
     except Exception as e:
         print(e)
         return html.Div([
@@ -226,19 +223,53 @@ def serve_layout():
                                     'borderRadius': '5px',
                                     'textAlign': 'center',
                                     'padding-top': '10px',
-                                    'margin': '17px',
+                                    'margin': '0px',
                                 },
                                 # Don't allow multiple files to be uploaded
                                 multiple=False,
                             ),
-                            html.P(id='filename'),
-                            html.P('Highlight Genes', style={'font-size':'120%', 'padding-top':'25px'}),
-                            dcc.Dropdown(
-                                id='gene-dropdown',
-                                multi=True,
-                            ),
+
+                            html.Details([
+                                html.Summary('Filename'),
+                                html.Div(id='filename', style={'word-wrap':'break-word', 'margin-bottom':'6px'})],
+                                open=True),
+                            html.Hr(style={'margin':'0px'}),
+                            html.Details([
+                                html.Summary('Highlight Genes'),
+                                html.Div([
+                                    dcc.Dropdown(
+                                    id='gene-dropdown',
+                                    multi=True,),], style={'margin-bottom':'10px'})],
+                                open=True),
+                            html.Hr(style={'margin':'0px'}),
+                            html.Div([
+                            html.Details([
+                                html.Summary('Filter on Transformed p-values'),
+                                html.Div([
+                                    dcc.RangeSlider(id='pvalue-slider', step=0.01),
+                                ], style={'width':'80%', 'margin-bottom':'30px'}
+                                )],
+                                open=True),
+                            ]),
+                            html.Hr(style={'margin':'0px'}),
+                            html.Details([
+                                html.Summary('Filter on log₂(FoldChange)'),
+                                html.Div([
+                                    dcc.RangeSlider(id='foldchange-slider', step=0.01),
+                                ], style={'width':'80%', 'margin-bottom':'30px'}
+                            )],
+                            open=True),
+                            html.Hr(style={'margin':'0px'}),
+                            html.Details([
+                                html.Summary('Filter on log₁₀(baseMean)'),
+                                html.Div([
+                                    dcc.RangeSlider(id='basemean-slider', step=0.01),
+                                ], style={'width':'80%', 'margin-bottom':'30px'}
+                            )],
+                            open=True),
+                            html.Hr(style={'margin':'0px'}),
                         ], 
-                        style={'width':'15%', 'display':'inline-block', 'vertical-align':'top', 'border':'5px', 'padding-top':'0px'},
+                        style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
                     ),
                     html.Div(
                         children=[
@@ -248,8 +279,8 @@ def serve_layout():
                                     tab_plot_volcano,
                                     tab_plot_ma,
                                 ], style=tabs_styles,
-                            ),
-                        ], style={'width':'85%', 'display':'inline-block'},
+                            ), 
+                        ], style={'width':'80%', 'display':'inline-block'},
                     ),
                 ],
             ),
@@ -269,14 +300,16 @@ tabs_styles = {
 tab_style = {
     'borderBottom': '1px solid #d6d6d6',
     'padding': '6px',
-    'fontWeight': 'bold'
+    'fontWeight': 'bold',
+    'width':'25vh'
 }
 tab_selected_style = {
     'borderTop': '1px solid #d6d6d6',
     'borderBottom': '1px solid #d6d6d6',
     'backgroundColor': '#717272',
     'color': 'white',
-    'padding': '6px'
+    'padding': '6px',
+    'width':'25vh'
 }
 
 tab_plot_volcano = dcc.Tab(
@@ -303,7 +336,6 @@ tab_plot_volcano = dcc.Tab(
                 style={'height':'80vh'} # To make graph adust with window
             )
         ], style={'width':'70%', 'display':'inline-block'}),
-        # ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
         html.Div(id='gene-info-markdown-volcano', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'10px'})         
     ], style=tab_style, selected_style=tab_selected_style
 )
@@ -325,10 +357,40 @@ tab_plot_ma = dcc.Tab(
 
 app.layout = serve_layout()
 
+# For use generating marks sequences for sliders
+def get_spaced_marks(min_mark, max_mark):
+    seq = np.linspace(min_mark, max_mark, 4)
+    if max_mark not in seq:
+        # remove old maximum value if too close to the high end of the slider
+        print(type(seq))
+        if (max_mark - max(seq)) < (0.5*(seq[2] - seq[1])):
+            seq.pop()
+        seq.append(max_mark)
+    if min_mark not in seq:
+        # remove old minimum value if too close to the low end of the slider
+        if (min_mark - seq[0]) < (0.5*(seq[2] - seq[1])):
+            seq.pop(0)
+        seq.insert(int(0), min_mark)
+    # Fix for 0 label not shown on slider mark
+    marks={int(i) if i % 1 == 0 else i: '{:.0f}'.format(i) for i in seq} 
+    return marks
+
 #Disk write callback and set session ID
 @app.callback(
     [Output('session-id', 'children'),
-     Output('filename', 'children')],
+     Output('filename', 'children'),
+     Output('pvalue-slider', 'min'),
+     Output('pvalue-slider', 'max'),
+     Output('pvalue-slider', 'value'),
+     Output('pvalue-slider', 'marks'),
+     Output('foldchange-slider', 'min'),
+     Output('foldchange-slider', 'max'),
+     Output('foldchange-slider', 'value'),
+     Output('foldchange-slider', 'marks'),
+     Output('basemean-slider', 'min'),
+     Output('basemean-slider', 'max'),
+     Output('basemean-slider', 'value'),
+     Output('basemean-slider', 'marks')],
     [Input('upload-data', 'contents')],
     [State('upload-data', 'filename'),
      State('upload-data', 'last_modified')]
@@ -340,9 +402,38 @@ def handle_df(contents, filename, last_modified):
     if contents is not None:
         df, basename = parse_file_contents(contents, filename, last_modified)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
-        with open('data.json', 'w') as outfile:
+        # !!Hack: set adjusted p-values beyond numerical precision of Excel
+        # smallest_float = find_float_limits()[0]
+        smallest_float = 1.00E-307
+        df.loc[df['padj']==0, 'padj'] = smallest_float
+
+        df['neg_log10_padj'] = -np.log10(df['padj'])
+        min_transform_padj = 0
+        max_transform_padj = df['neg_log10_padj'].max()
+
+        min_transform_foldchange = df['log2FoldChange'].min()
+        max_transform_foldchange = df['log2FoldChange'].max()
+
+        df['log10basemean'] = np.log10(df['baseMean'])
+        min_transform_basemean = df['log10basemean'].min()
+        max_transform_basemean = df['log10basemean'].max()
+
+        with open('data.json', 'w'):
             df.to_json('temp_data_files/' + session_id)
-        return session_id, basename
+        return(session_id, 
+                basename,
+                min_transform_padj,
+                max_transform_padj,
+                [min_transform_padj, max_transform_padj],
+                get_spaced_marks(min_transform_padj, max_transform_padj),
+                min_transform_foldchange,
+                max_transform_foldchange,
+                [min_transform_foldchange, max_transform_foldchange],
+                get_spaced_marks(min_transform_foldchange, max_transform_foldchange),
+                min_transform_basemean,
+                max_transform_basemean,
+                [min_transform_basemean, max_transform_basemean],
+                get_spaced_marks(min_transform_basemean, max_transform_basemean)) 
 
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
@@ -353,16 +444,34 @@ def populate_gene_dropdown(session_id):
     dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
     return dropdown_options
 
-# Generate volcano and MA plots from imported RNAseq file
+# Generate plots from imported RNAseq file
 @app.callback([
     Output('volcano-plot', 'figure'),
     Output('ma-plot', 'figure')],
    [Input('session-id', 'children'),
-    Input('gene-dropdown', 'value')])
-def populate_graphs(session_id, dropdown_value):
+    Input('gene-dropdown', 'value'),
+    Input('pvalue-slider', 'value'),
+    Input('foldchange-slider', 'value'),
+    Input('basemean-slider', 'value')])
+def populate_graphs(session_id, dropdown_value, pvalue_slider_value, foldchange_slider_value, basemean_slider_value):
     if session_id is not None:
         df = pd.read_json('temp_data_files/' + session_id)
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
+
+        if pvalue_slider_value is not None:
+            min_slider = pvalue_slider_value[0]
+            max_slider = pvalue_slider_value[1]
+            df = df[df['neg_log10_padj'].between(min_slider, max_slider)]
+
+        if foldchange_slider_value is not None:
+            min_slider = foldchange_slider_value[0]
+            max_slider = foldchange_slider_value[1]
+            df = df[df['log2FoldChange'].between(min_slider, max_slider)]
+
+        if basemean_slider_value is not None:
+            min_slider = basemean_slider_value[0]
+            max_slider = basemean_slider_value[1]
+            df = df[df['log10basemean'].between(min_slider, max_slider)]
 
         v_traces = [go.Scattergl(
             x=df['log2FoldChange'],
@@ -449,7 +558,6 @@ def update_gene_info_ma(click, session_id):
         return generate_gene_info(clickData=click, df=df)
     else:
         return generate_gene_info('default')
-
 
 if __name__ == '__main__':
     app.run_server()

@@ -1,6 +1,6 @@
 # LavaRuins - Interactive differential gene expression explorer
 
-LavaRuins is a friendly interactive data visualizer for exploring DESeq differential gene expression output files. LavaRuins is heavily inspired by [DEIVA](https://github.com/Hypercubed/DEIVA) and is built on the Plotly [Dash](https://plot.ly/products/dash/) framework.
+LavaRuins is a friendly interactive data visualizer for exploring mouse gene differential expression. LavaRuins is heavily inspired by [DEIVA](https://github.com/Hypercubed/DEIVA) and is built on the Plotly [Dash](https://plot.ly/products/dash/) framework.
 
 Currently LavaRuins will read Excel and CSV files, identified by file extension name (.csv or .xls*). The enforced column naming is exemplified below. Blue column names are currently required, and red column names are recommended but not currently required. The order of the columns in input files does not impact how LavaRuins reads those input files.
 
