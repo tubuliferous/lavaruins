@@ -33,7 +33,7 @@ auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
 server = app.server
 
 # Global homolog, synonym, etc. annotation import
-mgi_annos = pd.read_csv('Data/homologs_expanded_synonyms.tsv', sep='\t')
+mgi_annos = pd.read_csv('Data/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
 
 # Algorithmically determine the smallest and largest float values
 #   - For use with giving value to zero-valued p-values 
