@@ -23,6 +23,7 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 # Primary CSS
 app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
+
 # Icon setup
 icon_filepath = 'Data/volcano.png'
 encoded_icon = base64.b64encode(open(icon_filepath, 'rb').read())
@@ -244,7 +245,7 @@ def serve_layout():
                             html.Hr(style={'margin':'0px'}),
                             html.Div([
                             html.Details([
-                                html.Summary('Filter on Transformed p-values'),
+                                html.Summary('Filter on Transformed p-value'),
                                 html.Div([
                                     dcc.RangeSlider(id='pvalue-slider', step=0.01),
                                 ], style={'width':'80%', 'margin-bottom':'30px'}
@@ -359,7 +360,7 @@ app.layout = serve_layout()
 
 # For use generating marks sequences for sliders
 def get_spaced_marks(min_mark, max_mark):
-    seq = np.linspace(min_mark, max_mark, 4)
+    seq = np.linspace(min_mark, max_mark, 4).tolist() 
     if max_mark not in seq:
         # remove old maximum value if too close to the high end of the slider
         print(type(seq))
@@ -401,11 +402,14 @@ def handle_df(contents, filename, last_modified):
     session_id = str(uuid.uuid4())
     if contents is not None:
         df, basename = parse_file_contents(contents, filename, last_modified)
+        # Handle alternative gene name column
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
         # !!Hack: set adjusted p-values beyond numerical precision of Excel
         # smallest_float = find_float_limits()[0]
         smallest_float = 1.00E-307
         df.loc[df['padj']==0, 'padj'] = smallest_float
+        # !!Hack: Remove values with baseMean of 0
+        df = df[df['baseMean']!=0]
 
         df['neg_log10_padj'] = -np.log10(df['padj'])
         min_transform_padj = 0
