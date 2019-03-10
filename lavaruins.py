@@ -10,16 +10,11 @@ import base64
 import io
 import dash_auth
 import uuid
-# import json
-# import pickle
 import ntpath
-# import math
-# import os
 # from flask_caching import Cache
 
-# Display all columns when printing dataframes
+# Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
-
 
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -201,6 +196,22 @@ def generate_gene_info(clickData, df=None):
                omim_html_id,
                omim_html_link]
 
+
+
+def slider_setup(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
+    return html.Div([
+        html.Div([
+            # !!Consider using style 'display':table-cell' for better fromatting of components below
+            dcc.RangeSlider(id=slider_id, step=0.01)], style={'margin-bottom':'25px'}),
+            html.Div(['Min: ', dcc.Input(id=input_min_id, style={'width':'40px'}),], 
+                style={'width':'50px', 'display':'inline-block'}), 
+            html.Div(['Max: ', dcc.Input(id=input_max_id, style={'width':'40px'}),], 
+                style={'width':'50px','display':'inline-block'}),
+            html.Button(id=submit_button_id, children='Submit', style={'width':'55px', 'display':'inline-block', 'padding':'0px', 'margin':'0px', 'height':'30px', 'lineHeight':'0px', 'margin-left':'5px'}),
+            html.Button(id=reset_button_id, children='Reset',  style={'width':'52px', 'display':'inline-block', 'padding':'0px', 'margin':'0px', 'height':'30px', 'lineHeight':'0px', 'margin-left':'5px'})
+        ], style={'width':'90%'}
+    )
+
 def serve_layout():
     return html.Div(
         children=[
@@ -247,31 +258,20 @@ def serve_layout():
                                     multi=True,),], style={'margin-bottom':'10px'})],
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
-                            html.Div([
                             html.Details([
                                 html.Summary('Filter on Transformed p-value'),
-                                html.Div([
-                                    dcc.RangeSlider(id='pvalue-slider', step=0.01),
-                                ], style={'width':'80%', 'margin-bottom':'30px'}
-                                )],
-                                open=True),
-                            ]),
+                                slider_setup(slider_id='pvalue-slider', input_min_id='p-value-textbox-min', input_max_id='p-value-textbox-max', submit_button_id = 'p-value-submit_button', reset_button_id='p-value-reset-button'),
+                                ], open=True, style={'margin-bottom': '10px'}),
                             html.Hr(style={'margin':'0px'}),
                             html.Details([
                                 html.Summary('Filter on log₂(FoldChange)'),
-                                html.Div([
-                                    dcc.RangeSlider(id='foldchange-slider', step=0.01),
-                                ], style={'width':'80%', 'margin-bottom':'30px'}
-                            )],
-                            open=True),
+                                slider_setup(slider_id='foldchange-slider', input_min_id='foldchange-textbox-min', input_max_id='foldchange-textbox-max', submit_button_id = 'foldchange-submit_button', reset_button_id='foldchange-reset-button'),
+                                ], open=True, style={'margin-bottom': '10px'}),
                             html.Hr(style={'margin':'0px'}),
                             html.Details([
-                                html.Summary('Filter on log₁₀(baseMean)'),
-                                html.Div([
-                                    dcc.RangeSlider(id='basemean-slider', step=0.01),
-                                ], style={'width':'80%', 'margin-bottom':'30px'}
-                            )],
-                            open=True),
+                                html.Summary('Filter on log₁₀(BaseMean)'),
+                                slider_setup(slider_id='basemean-slider', input_min_id='basemean-textbox-min', input_max_id='basemean-textbox-max', submit_button_id = 'basemean-submit_button', reset_button_id='basemean-reset-button'),
+                                ], open=True, style={'margin-bottom': '10px'}),
                             html.Hr(style={'margin':'0px'}),
                         ], 
                         style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
@@ -367,7 +367,6 @@ def get_spaced_marks(min_mark, max_mark):
     seq = np.linspace(min_mark, max_mark, 4).tolist() 
     if max_mark not in seq:
         # remove old maximum value if too close to the high end of the slider
-        print(type(seq))
         if (max_mark - max(seq)) < (0.5*(seq[2] - seq[1])):
             seq.pop()
         seq.append(max_mark)
@@ -431,10 +430,6 @@ def handle_df(contents, filename, last_modified):
 
         with open('data.json', 'w'):
             df.to_json('temp_data_files/' + session_id)
-
-        # Testinging p-value weirdness
-        print(df[df['gene_ID']=='Ly6a'])  
-
 
         return(session_id, 
                 basename,
