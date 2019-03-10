@@ -17,11 +17,15 @@ import ntpath
 # import os
 # from flask_caching import Cache
 
+# Display all columns when printing dataframes
+pd.set_option('display.max_columns', 500)
+
+
 # App setup
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-# Loading screen CSS
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 # Primary CSS
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+# Loading screen CSS
 app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
 
 # Icon setup
@@ -107,9 +111,9 @@ def generate_gene_info(clickData, df=None):
     else:
         gene_name = clickData['points'][0]['text']
 
-        padj = df[df['gene_ID'] == gene_name]['padj'].values[0]
+        neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
         log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
-        basemean = df[df['gene_ID'] == gene_name]['baseMean'].values[0]
+        log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
 
         gene_annos = mgi_annos[(mgi_annos['Symbol']==gene_name) & (mgi_annos['Common Organism Name']=='mouse, laboratory')]
  
@@ -165,8 +169,8 @@ def generate_gene_info(clickData, df=None):
         mouse_md = dcc.Markdown(dedent('''''' +
             '\n\n**Gene Name**: *{}*'.format(gene_name) +
             '\n\n**Synonyms:** *{}*'.format(synonyms) +
-            '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(-np.log10(padj)) + 
-            '\n\n**log₁₀(base mean):** {:3f}'.format(np.log10(basemean)) +
+            '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) + 
+            '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
             '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
             '\n\n**Location:** {}'.format(location) +
             '\n\n**Functional Name:** {}'.format(function_name)))
@@ -411,6 +415,9 @@ def handle_df(contents, filename, last_modified):
         # !!Hack: Remove values with baseMean of 0
         df = df[df['baseMean']!=0]
 
+        # Calculating these values upfront sidesteps weird bug where np.log functions
+        # return positively or negatively infinite values for input values between
+        # roughly 1e-12 and le-15 and not above or below those values (except for 0)
         df['neg_log10_padj'] = -np.log10(df['padj'])
         min_transform_padj = 0
         max_transform_padj = df['neg_log10_padj'].max()
@@ -424,6 +431,11 @@ def handle_df(contents, filename, last_modified):
 
         with open('data.json', 'w'):
             df.to_json('temp_data_files/' + session_id)
+
+        # Testinging p-value weirdness
+        print(df[df['gene_ID']=='Ly6a'])  
+
+
         return(session_id, 
                 basename,
                 min_transform_padj,
@@ -479,14 +491,14 @@ def populate_graphs(session_id, dropdown_value, pvalue_slider_value, foldchange_
 
         v_traces = [go.Scattergl(
             x=df['log2FoldChange'],
-            y=-np.log10(df['padj']),
+            y=df['neg_log10_padj'],
             mode='markers',
             text=df['gene_ID'],
             name='All Genes',
             marker=marker_settings)]
 
         m_traces = [go.Scattergl(
-            x=np.log10(df['baseMean']),
+            x=df['log10basemean'],
             y=df['log2FoldChange'],
             mode='markers',
             text=df['gene_ID'],
@@ -499,7 +511,7 @@ def populate_graphs(session_id, dropdown_value, pvalue_slider_value, foldchange_
                 v_traces.append(
                     go.Scattergl(
                         x=gene_slice_df['log2FoldChange'],
-                        y=-np.log10(gene_slice_df['padj']),
+                        y=gene_slice_df['neg_log10_padj'],
                         mode='markers',
                         text=gene_slice_df['gene_ID'],
                         marker={'size':11, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
@@ -508,7 +520,7 @@ def populate_graphs(session_id, dropdown_value, pvalue_slider_value, foldchange_
                 )
                 m_traces.append(
                     go.Scattergl(
-                        x=np.log10(gene_slice_df['baseMean']),
+                        x=gene_slice_df['log10basemean'],
                         y=gene_slice_df['log2FoldChange'],
                         mode='markers',
                         text=gene_slice_df['gene_ID'],
