@@ -423,7 +423,6 @@ def handle_df(
         with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
             json.dump(global_vars, json_write)
 
-         
         # Calculating these values upfront sidesteps weird bug where np.log functions
         # return positively or negatively infinite outpu values for input values between
         # roughly 1e-12 and le-15 and not above or below those values (except for 0)
@@ -441,8 +440,6 @@ def handle_df(
         # Write dataframe to disk
         with open('data.json', 'w'):
             df.to_json('temp_data_files/' + session_id)
-
-
 
         min_transform_padj = 0
         max_transform_padj = df['neg_log10_padj'].max()    
@@ -463,117 +460,6 @@ def handle_df(
                 max_transform_basemean,
                 get_spaced_marks(min_transform_basemean, max_transform_basemean),
         )
-# @app.callback(
-#     [
-#         Output('pvalue-slider', 'value'),
-#         Output('foldchange-slider', 'value'),
-#         Output('basemean-slider', 'value'),
-#     ],
-#     [
-#         Input('session-id', 'children'),
-
-#         Input('pvalue-submit-button', 'n_clicks'),
-#         Input('pvalue-reset-button', 'n_clicks'),
-#         Input('pvalue-slider', 'min'),
-#         Input('pvalue-slider', 'max'),
-
-#         Input('foldchange-submit-button', 'n_clicks'),
-#         Input('foldchange-reset-button', 'n_clicks'),
-#         Input('foldchange-slider', 'min'),
-#         Input('foldchange-slider', 'max'),
-
-#         Input('basemean-submit-button', 'n_clicks'),
-#         Input('basemean-reset-button', 'n_clicks'),
-#         Input('basemean-slider', 'min'),
-#         Input('basemean-slider', 'max'),
-#     ],
-#     [
-#         State('pvalue-textbox-min', 'value'),
-#         State('pvalue-textbox-max', 'value'),
-
-#         State('foldchange-textbox-min', 'value'),
-#         State('foldchange-textbox-max', 'value'),  
-
-#         State('basemean-textbox-min', 'value'),
-#         State('basemean-textbox-max', 'value'),     
-#     ]
-# )
-# def set_slider_values(
-#     session_id,
-
-#     pvalue_submit_clicks, 
-#     pvalue_reset_button,
-#     pvalue_slider_min,
-#     pvalue_slider_max,
-
-#     foldchange_submit_clicks,
-#     foldchange_reset_button,
-#     foldchange_slider_min,
-#     foldchange_slider_max,
-
-#     basemean_submit_clicks,
-#     basemean_reset_button,
-#     basemean_slider_min,
-#     basemean_slider_max,
-
-#     pvalue_textbox_min,
-#     pvalue_textbox_max,
-
-#     foldchange_textbox_min,
-#     foldchange_textbox_max,
-
-#     basemean_textbox_min,
-#     basemean_textbox_max,
-# ):
-#     with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
-#         global_vars = json.load(json_read)
-
-#     print("\n\n" + str(global_vars) + "\n\n")
-
-#     set_min_transform_pvalue = pvalue_slider_min
-#     set_max_transform_pvalue = pvalue_slider_max
-#     if pvalue_textbox_min is not None:
-#         set_min_transform_pvalue = float(pvalue_textbox_min)
-#     if pvalue_textbox_max is not None:
-#         set_max_transform_pvalue = float(pvalue_textbox_max)
-#     if global_vars['pvalue_reset_click_count'] is not pvalue_reset_button:
-#         set_min_transform_pvalue = pvalue_slider_min
-#         set_max_transform_pvalue = pvalue_slider_max
-#         global_vars['pvalue_reset_click_count'] = pvalue_reset_button
-#         with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-#             json.dump(global_vars, json_write) 
-
-#     set_min_transform_foldchange = foldchange_slider_min
-#     set_max_transform_foldchange = foldchange_slider_max
-#     if foldchange_textbox_min is not None:
-#         set_min_transform_foldchange = float(foldchange_textbox_min)
-#     if foldchange_textbox_max is not None:
-#         set_max_transform_foldchange = float(foldchange_textbox_max)
-#     if global_vars['foldchange_reset_click_count'] is not foldchange_reset_button:
-#         set_min_transform_foldchange = foldchange_slider_min
-#         set_max_transform_foldchange = foldchange_slider_max
-#         global_vars['foldchange_reset_click_count'] = foldchange_reset_button
-#         with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-#             json.dump(global_vars, json_write) 
-
-#     set_min_transform_basemean = basemean_slider_min
-#     set_max_transform_basemean = basemean_slider_max
-#     if basemean_textbox_min is not None:
-#         set_min_transform_basemean = float(basemean_textbox_min)
-#     if basemean_textbox_max is not None:
-#         set_max_transform_basemean = float(basemean_textbox_max)
-#     if global_vars['basemean_reset_click_count'] is not basemean_reset_button:
-#         set_min_transform_basemean = basemean_slider_min
-#         set_max_transform_basemean = basemean_slider_max
-#         global_vars['basemean_reset_click_count'] = basemean_reset_button
-#         with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-#             json.dump(global_vars, json_write) 
-
-#     return(
-#         [set_min_transform_pvalue, set_max_transform_pvalue],
-#         [set_min_transform_foldchange, set_max_transform_foldchange],
-#         [set_min_transform_basemean, set_max_transform_basemean]
-#     )
 
 @app.callback(
         Output('pvalue-slider', 'value'),
