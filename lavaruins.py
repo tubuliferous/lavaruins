@@ -196,8 +196,6 @@ def generate_gene_info(clickData, df=None):
                omim_html_id,
                omim_html_link]
 
-
-
 def slider_setup(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
     return html.Div([
         html.Div([
