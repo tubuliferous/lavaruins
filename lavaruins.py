@@ -282,6 +282,7 @@ def serve_layout():
                                 children=[
                                     tab_plot_volcano,
                                     tab_plot_ma,
+                                    tab_plot_mavolc,
                                 ], style=tabs_styles,
                             ), 
                         ], style={'width':'80%', 'display':'inline-block'},
@@ -356,6 +357,21 @@ tab_plot_ma = dcc.Tab(
             ),
         ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
         html.Div(id='gene-info-markdown-ma', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'20px'})  
+    ], style=tab_style, selected_style=tab_selected_style
+)
+tab_plot_mavolc = dcc.Tab(
+        label='MAxVolc Plot',
+    children=[
+        html.Div([
+            dcc.Graph(
+                id='mavolc-plot',
+                config={
+                    "displaylogo": False,
+                    'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
+                },style={'height': '80vh'} # To make graph adust with window
+            ),
+        ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
+        html.Div(id='gene-info-markdown-mavolc', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'20px'})  
     ], style=tab_style, selected_style=tab_selected_style
 )
 
@@ -611,7 +627,8 @@ def populate_gene_dropdown(session_id):
 # Generate plots from imported RNAseq file
 @app.callback([
     Output('volcano-plot', 'figure'),
-    Output('ma-plot', 'figure')],
+    Output('ma-plot', 'figure'),
+    Output('mavolc-plot', 'figure')],
    [Input('session-id', 'children'),
     Input('gene-dropdown', 'value'),
     Input('pvalue-slider', 'value'),
@@ -659,6 +676,15 @@ def populate_graphs(
             name='All Genes',
             marker=marker_settings)]
 
+        mv_traces = [go.Scatter3d(
+            x=df['log10basemean'],
+            y=df['log2FoldChange'],
+            z=df['neg_log10_padj'],
+            mode='markers',
+            text=df['gene_ID'],
+            name='All Genes',
+            marker={'size':2, 'color':'black', 'opacity':0.5})]
+
         if dropdown_value is not None:
             for gene_name in dropdown_value:
                 gene_slice_df = df[df['gene_ID'] == gene_name]
@@ -682,6 +708,17 @@ def populate_graphs(
                         name=gene_name
                     )
                 )
+                mv_traces.append(
+                    go.Scatter3d(
+                        x=gene_slice_df['log10basemean'],
+                        y=gene_slice_df['log2FoldChange'],
+                        z=gene_slice_df['neg_log10_padj'],
+                        mode='markers',
+                        text=gene_slice_df['gene_ID'],
+                        marker={'size':4, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
+                        name=gene_name
+                    )
+                )
 
         volc_figure = {
         'data': v_traces,
@@ -691,7 +728,9 @@ def populate_graphs(
             hovermode='closest',
             title='Significance vs. Effect Size',
             xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, # !!Figure out how to change size
-            yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},)}
+            yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
+            )
+        }
 
         ma_figure={
             'data':m_traces,
@@ -703,7 +742,28 @@ def populate_graphs(
             )
         }
 
-    return volc_figure, ma_figure
+        mavolc_figure={
+            'data':mv_traces,
+            'layout':go.Layout(
+                hovermode='closest',
+                scene = dict(
+                    xaxis = dict(
+                        title='A: log<sub>10</sub>(baseMean)'),
+                    yaxis = dict(
+                        title='M:log<sub>2</sub>(FoldChange)'),
+                    zaxis = dict(
+                        title='Significance: -log<sub>10</sub>(padj)'),
+
+                    # Make z-axis appear twice as big as the other two axes
+                    aspectmode='manual',
+                    aspectratio=go.layout.scene.Aspectratio(
+                        x=1, y=1, z=1
+                    )
+                ),
+            )
+        }
+
+    return volc_figure, ma_figure, mavolc_figure
 
 # Populate gene information panel from volcano plot click
 @app.callback(
