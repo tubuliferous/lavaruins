@@ -789,5 +789,17 @@ def update_gene_info_ma(click, session_id):
     else:
         return generate_gene_info('default')
 
+@app.callback(
+    Output('gene-info-markdown-mavolc', 'children'),
+    [Input('mavolc-plot', 'clickData'), 
+     Input('session-id', 'children')])
+def update_gene_info_mavolc(click, session_id):
+    df = pd.read_json('temp_data_files/' + session_id)
+    if click:
+        return generate_gene_info(clickData=click, df=df)
+    else:
+        return generate_gene_info('default')
+
+
 if __name__ == '__main__':
     app.run_server()
