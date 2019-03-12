@@ -12,21 +12,12 @@ import dash_auth
 import uuid
 import ntpath
 import json
-# from flask_caching import Cache
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
 
 # App setup
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-# Primary CSS
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-# Loading screen CSS
-app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/brPBPO.css"})
-
-# Icon setup
-icon_filepath = 'Data/volcano.png'
-encoded_icon = base64.b64encode(open(icon_filepath, 'rb').read())
+app = dash.Dash(__name__)
 
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
@@ -217,7 +208,7 @@ def serve_layout():
             # Hidden Div to store session
             html.Div(id='session-id', style={'display': 'none'}),
             # dcc.Store(id='session', storage_type='session'),
-            html.Img(src='data:image/png;base64,{}'.format(encoded_icon.decode()), style={'width': '60px', 'display':'inline-block'}),
+            html.Img(src='assets/volcano.png', style={'width': '60px', 'display':'inline-block'}),
             html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline-block'}),
             html.Div(
                 children=[
@@ -503,10 +494,9 @@ def set_slider_values_pvalue(
     pvalue_textbox_min,
     pvalue_textbox_max,
 ):
+    # "Global variables" hack for keeping track of button presses
     with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
         global_vars = json.load(json_read)
-
-    print("\n\n" + str(global_vars) + "\n\n")
 
     set_min_transform_pvalue = pvalue_slider_min
     set_max_transform_pvalue = pvalue_slider_max
@@ -552,8 +542,6 @@ def set_slider_values_foldchange(
     with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
         global_vars = json.load(json_read)
 
-    print("\n\n" + str(global_vars) + "\n\n")
-
     set_min_transform_foldchange = foldchange_slider_min
     set_max_transform_foldchange = foldchange_slider_max
     if foldchange_textbox_min is not None:
@@ -597,8 +585,6 @@ def set_slider_values_basemean(
 ):
     with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
         global_vars = json.load(json_read)
-
-    print("\n\n" + str(global_vars) + "\n\n")
 
     set_min_transform_basemean = basemean_slider_min
     set_max_transform_basemean = basemean_slider_max
