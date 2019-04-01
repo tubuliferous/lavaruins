@@ -12,6 +12,7 @@ import dash_auth
 import uuid
 import ntpath
 import json
+import itertools, re, json
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -25,7 +26,30 @@ auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
 server = app.server
 
 # Global homolog, synonym, etc. annotation import
-mgi_annos = pd.read_csv('Data/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
+mgi_annos = pd.read_csv('data/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
+
+with open("test_resources/Mouse Gene Ontology (GO)/tiny_go.obo", 'rt') as f:
+    content = f.read()    
+
+# Clean GO terms list
+def clean_go_terms(terms):
+    l = []
+    for term in terms:
+        if (len(re.findall('is_obsolete: true', term))==0) and (len(re.findall('id: GO:\d+', term)) > 0):
+            l.append(term)
+    return l
+
+def get_top_nodes(terms):
+    l = []
+    for term in terms: 
+        if len(re.findall('is_a: GO:\d+', term)) == 0:
+            l.append(term)
+    return l
+
+split_terms = content.split('\n\n')
+split_terms_clean = clean_go_terms(split_terms)
+top_nodes = get_top_nodes(split_terms_clean)
+len(top_nodes)
 
 # Algorithmically determine the smallest and largest float values
 #   - For use with giving value to zero-valued p-values 
@@ -67,7 +91,7 @@ def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
 
-# File input
+# Take file input and return dataframe
 def parse_file_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
@@ -97,7 +121,7 @@ def generate_gene_info(clickData, df=None):
         return default_text
     else:
         gene_name = clickData['points'][0]['text']
-
+        
         neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
         log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
         log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
@@ -188,7 +212,7 @@ def generate_gene_info(clickData, df=None):
                omim_html_id,
                omim_html_link]
 
-def slider_setup(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
+def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
     return html.Div([
         html.Div([
             # !!Consider using style 'display':table-cell' for better fromatting of components below
@@ -240,6 +264,7 @@ def serve_layout():
                                 html.Div(id='filename', style={'word-wrap':'break-word', 'margin-bottom':'6px'})],
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
+                            # Gene highlighter dropdown menu
                             html.Details([
                                 html.Summary('Highlight Genes'),
                                 html.Div([
@@ -248,24 +273,28 @@ def serve_layout():
                                     multi=True,),], style={'margin-bottom':'10px'})],
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
+                            # log₁₀(adjusted p-value) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on Transformed p-value'),
-                                slider_setup(slider_id='pvalue-slider', input_min_id='pvalue-textbox-min', input_max_id='pvalue-textbox-max', submit_button_id = 'pvalue-submit-button', reset_button_id='pvalue-reset-button'),
+                                slider_layout(slider_id='pvalue-slider', input_min_id='pvalue-textbox-min', input_max_id='pvalue-textbox-max', submit_button_id = 'pvalue-submit-button', reset_button_id='pvalue-reset-button'),
                                 ], open=True, style={'margin-bottom': '10px'}),
                             html.Hr(style={'margin':'0px'}),
+                            # Log2(foldchange) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on log₂(FoldChange)'),
-                                slider_setup(slider_id='foldchange-slider', input_min_id='foldchange-textbox-min', input_max_id='foldchange-textbox-max', submit_button_id = 'foldchange-submit-button', reset_button_id='foldchange-reset-button'),
+                                slider_layout(slider_id='foldchange-slider', input_min_id='foldchange-textbox-min', input_max_id='foldchange-textbox-max', submit_button_id = 'foldchange-submit-button', reset_button_id='foldchange-reset-button'),
                                 ], open=True, style={'margin-bottom': '10px'}),
                             html.Hr(style={'margin':'0px'}),
+                            # Log₁₀(basemean) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on log₁₀(BaseMean)'),
-                                slider_setup(slider_id='basemean-slider', input_min_id='basemean-textbox-min', input_max_id='basemean-textbox-max', submit_button_id = 'basemean-submit-button', reset_button_id='basemean-reset-button'),
+                                slider_layout(slider_id='basemean-slider', input_min_id='basemean-textbox-min', input_max_id='basemean-textbox-max', submit_button_id = 'basemean-submit-button', reset_button_id='basemean-reset-button'),
                                 ], open=True, style={'margin-bottom': '10px'}),
                             html.Hr(style={'margin':'0px'}),
                         ], 
                         style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
                     ),
+                    # Tab-accessed plots in the center of the layout
                     html.Div(
                         children=[
                             dcc.Tabs(
@@ -297,7 +326,7 @@ tab_style = {
     'borderBottom': '1px solid #d6d6d6',
     'padding': '6px',
     'fontWeight': 'bold',
-    'width':'25vh'
+    'width':'16%'
 }
 tab_selected_style = {
     'borderTop': '1px solid #d6d6d6',
@@ -305,7 +334,7 @@ tab_selected_style = {
     'backgroundColor': '#717272',
     'color': 'white',
     'padding': '6px',
-    'width':'25vh'
+    'width':'16%'
 }
 
 tab_plot_volcano = dcc.Tab(
@@ -413,7 +442,7 @@ def handle_df(
     contents,
     filename,
     last_modified,
-    ):
+):
     # Need to put session ID here (I suspect) so that there is a 
     # change that will trigger the other callbacks 
     session_id = str(uuid.uuid4())
@@ -445,8 +474,7 @@ def handle_df(
         df['log10basemean'] = np.log10(df['baseMean'])
 
         # Write dataframe to disk
-        with open('data.json', 'w'):
-            df.to_json('temp_data_files/' + session_id)
+        df.to_json('temp_data_files/' + session_id)
 
         min_transform_padj = 0
         max_transform_padj = df['neg_log10_padj'].max()    
@@ -468,138 +496,55 @@ def handle_df(
                 get_spaced_marks(min_transform_basemean, max_transform_basemean),
         )
 
-@app.callback(
-        Output('pvalue-slider', 'value'),
-    [
-        Input('session-id', 'children'),
+# Relies on <measurement>-<component> naming consistency in layout
+def slider_setup(measurement_name):
+    @app.callback(
+            Output(measurement_name + '-slider', 'value'),
+        [
+            Input('session-id', 'children'),
 
-        Input('pvalue-submit-button', 'n_clicks'),
-        Input('pvalue-reset-button', 'n_clicks'),
-        Input('pvalue-slider', 'min'),
-        Input('pvalue-slider', 'max'),
-    ],
-    [
-        State('pvalue-textbox-min', 'value'),
-        State('pvalue-textbox-max', 'value'),
-    ]
-)
-def set_slider_values_pvalue(
-    session_id,
+            Input(measurement_name + '-submit-button', 'n_clicks'),
+            Input(measurement_name + '-reset-button', 'n_clicks'),
+            Input(measurement_name + '-slider', 'min'),
+            Input(measurement_name + '-slider', 'max'),
+        ],
+        [
+            State(measurement_name + '-textbox-min', 'value'),
+            State(measurement_name + '-textbox-max', 'value'),
+        ]
+    )
+    def set_slider_values(
+        session_id,
 
-    pvalue_submit_clicks, 
-    pvalue_reset_button,
-    pvalue_slider_min,
-    pvalue_slider_max,
+        submit_clicks, 
+        reset_button,
+        slider_min,
+        slider_max,
 
-    pvalue_textbox_min,
-    pvalue_textbox_max,
-):
-    # "Global variables" hack for keeping track of button presses
-    with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
-        global_vars = json.load(json_read)
+        textbox_min,
+        textbox_max,
+    ):
+        with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
+            global_vars = json.load(json_read)
 
-    set_min_transform_pvalue = pvalue_slider_min
-    set_max_transform_pvalue = pvalue_slider_max
-    if pvalue_textbox_min is not None:
-        set_min_transform_pvalue = float(pvalue_textbox_min)
-    if pvalue_textbox_max is not None:
-        set_max_transform_pvalue = float(pvalue_textbox_max)
-    if global_vars['pvalue_reset_click_count'] is not pvalue_reset_button:
-        set_min_transform_pvalue = pvalue_slider_min
-        set_max_transform_pvalue = pvalue_slider_max
-        global_vars['pvalue_reset_click_count'] = pvalue_reset_button
-        with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-            json.dump(global_vars, json_write) 
-    
-    return  [set_min_transform_pvalue, set_max_transform_pvalue]
+        set_min_transform = slider_min
+        set_max_transform = slider_max
+        if textbox_min is not None:
+            set_min_transform = float(textbox_min)
+        if textbox_max is not None:
+            set_max_transform = float(textbox_max)
+        if global_vars[measurement_name + '_reset_click_count'] is not reset_button:
+            set_min_transform = slider_min
+            set_max_transform = slider_max
+            global_vars[measurement_name + '_reset_click_count'] = reset_button
+            with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
+                json.dump(global_vars, json_write) 
+         
+        return  [set_min_transform, set_max_transform]
 
-@app.callback(
-        Output('foldchange-slider', 'value'),
-    [
-        Input('session-id', 'children'),
-
-        Input('foldchange-submit-button', 'n_clicks'),
-        Input('foldchange-reset-button', 'n_clicks'),
-        Input('foldchange-slider', 'min'),
-        Input('foldchange-slider', 'max'),
-    ],
-    [
-        State('foldchange-textbox-min', 'value'),
-        State('foldchange-textbox-max', 'value'),
-    ]
-)
-def set_slider_values_foldchange(
-    session_id,
-
-    foldchange_submit_clicks, 
-    foldchange_reset_button,
-    foldchange_slider_min,
-    foldchange_slider_max,
-
-    foldchange_textbox_min,
-    foldchange_textbox_max,
-):
-    with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
-        global_vars = json.load(json_read)
-
-    set_min_transform_foldchange = foldchange_slider_min
-    set_max_transform_foldchange = foldchange_slider_max
-    if foldchange_textbox_min is not None:
-        set_min_transform_foldchange = float(foldchange_textbox_min)
-    if foldchange_textbox_max is not None:
-        set_max_transform_foldchange = float(foldchange_textbox_max)
-    if global_vars['foldchange_reset_click_count'] is not foldchange_reset_button:
-        set_min_transform_foldchange = foldchange_slider_min
-        set_max_transform_foldchange = foldchange_slider_max
-        global_vars['foldchange_reset_click_count'] = foldchange_reset_button
-        with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-            json.dump(global_vars, json_write) 
-    
-    return  [set_min_transform_foldchange, set_max_transform_foldchange]
-
-@app.callback(
-        Output('basemean-slider', 'value'),
-    [
-        Input('session-id', 'children'),
-
-        Input('basemean-submit-button', 'n_clicks'),
-        Input('basemean-reset-button', 'n_clicks'),
-        Input('basemean-slider', 'min'),
-        Input('basemean-slider', 'max'),
-    ],
-    [
-        State('basemean-textbox-min', 'value'),
-        State('basemean-textbox-max', 'value'),
-    ]
-)
-def set_slider_values_basemean(
-    session_id,
-
-    basemean_submit_clicks, 
-    basemean_reset_button,
-    basemean_slider_min,
-    basemean_slider_max,
-
-    basemean_textbox_min,
-    basemean_textbox_max,
-):
-    with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
-        global_vars = json.load(json_read)
-
-    set_min_transform_basemean = basemean_slider_min
-    set_max_transform_basemean = basemean_slider_max
-    if basemean_textbox_min is not None:
-        set_min_transform_basemean = float(basemean_textbox_min)
-    if basemean_textbox_max is not None:
-        set_max_transform_basemean = float(basemean_textbox_max)
-    if global_vars['basemean_reset_click_count'] is not basemean_reset_button:
-        set_min_transform_basemean = basemean_slider_min
-        set_max_transform_basemean = basemean_slider_max
-        global_vars['basemean_reset_click_count'] = basemean_reset_button
-        with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-            json.dump(global_vars, json_write) 
-    
-    return  [set_min_transform_basemean, set_max_transform_basemean]
+slider_setup('pvalue')
+slider_setup('foldchange')
+slider_setup('basemean')
 
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
@@ -669,7 +614,7 @@ def populate_graphs(
             mode='markers',
             text=df['gene_ID'],
             name='All Genes',
-            marker={'size':2, 'color':'black', 'opacity':0.5})]
+            marker={'size':3, 'color':'black', 'opacity':0.5})]
 
         if dropdown_value is not None:
             for gene_name in dropdown_value:
@@ -679,7 +624,10 @@ def populate_graphs(
                         x=gene_slice_df['log2FoldChange'],
                         y=gene_slice_df['neg_log10_padj'],
                         mode='markers',
+                        # mode='markers+text',
+                        # textposition=['bottom center'],
                         text=gene_slice_df['gene_ID'],
+                        # textfont={'color':'red'},
                         marker={'size':11, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
                         name=gene_name
                     )
@@ -689,7 +637,11 @@ def populate_graphs(
                         x=gene_slice_df['log10basemean'],
                         y=gene_slice_df['log2FoldChange'],
                         mode='markers',
+                        # mode='markers+text',
+                        # textposition=['bottom center'],
                         text=gene_slice_df['gene_ID'],
+                        # textfont={'color':'red'},
+
                         marker={'size':11, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
                         name=gene_name
                     )
@@ -700,7 +652,11 @@ def populate_graphs(
                         y=gene_slice_df['log2FoldChange'],
                         z=gene_slice_df['neg_log10_padj'],
                         mode='markers',
+                        # mode='markers+text',
+                        # textposition=['bottom center'],
                         text=gene_slice_df['gene_ID'],
+                        # textfont={'color':'red'},
+
                         marker={'size':4, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
                         name=gene_name
                     )
@@ -739,7 +695,6 @@ def populate_graphs(
                         title='M:log<sub>2</sub>(FoldChange)'),
                     zaxis = dict(
                         title='Significance: -log<sub>10</sub>(padj)'),
-
                     # Make z-axis appear twice as big as the other two axes
                     aspectmode='manual',
                     aspectratio=go.layout.scene.Aspectratio(
@@ -775,6 +730,7 @@ def update_gene_info_ma(click, session_id):
     else:
         return generate_gene_info('default')
 
+# Populate gene information panel from MA x Volcano plot 
 @app.callback(
     Output('gene-info-markdown-mavolc', 'children'),
     [Input('mavolc-plot', 'clickData'), 
@@ -785,7 +741,6 @@ def update_gene_info_mavolc(click, session_id):
         return generate_gene_info(clickData=click, df=df)
     else:
         return generate_gene_info('default')
-
 
 if __name__ == '__main__':
     app.run_server()

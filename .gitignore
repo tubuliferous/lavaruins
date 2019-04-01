@@ -9,3 +9,4 @@ activate
 *test*.py
 temp_data_files/*
 !temp_data_files/.gitkeep 
+test_*
