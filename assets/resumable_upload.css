@@ -53,14 +53,15 @@ body {
   width: 50%;
   background-color: none;
 }
-.resumable-default > div.progress > div.progress-bar,
+/*Turn off progress bar for now*/
+/*.resumable-default > div.progress > div.progress-bar,
 .resumable-complete > div.progress > div.progress-bar,
 .resumable-hovered > div.progress > div.progress-bar,
 .resumable-paused > div.progress > div.progress-bar,
 .resumable-uploading > div.progress > div.progress-bar {
   height: 10px;
   background-color: green;
-}
+}*/
 .resumable-default > label,
 .resumable-complete > label,
 .resumable-hovered > label,

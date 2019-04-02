@@ -190,6 +190,9 @@ def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset
     )
 
 def serve_layout():
+
+    left_panel_style = {'margin-bottom':'5px','margin-top':'5px'}
+
     return html.Div(
         children=[
             # Hidden Div to store session
@@ -214,9 +217,12 @@ def serve_layout():
                                     chunkSize=500_000,
                                     defaultStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
                                     activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
-                                    completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'},
+                                    completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'}
+
                                 )],
-                                open=True),
+                                open=True,
+                                style=left_panel_style),
+                            html.Hr(style={'margin':'0px'}),
 
                             # Gene highlighter dropdown menu
                             html.Details([
@@ -224,7 +230,8 @@ def serve_layout():
                                 html.Div([
                                     dcc.Dropdown(
                                     id='gene-dropdown',
-                                    multi=True,),], style={'margin-bottom':'10px'})],
+                                    multi=True,),])],
+                                style=left_panel_style,
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
 
@@ -232,21 +239,23 @@ def serve_layout():
                             html.Details([
                                 html.Summary('Filter on Transformed p-value'),
                                 slider_layout(slider_id='pvalue-slider', input_min_id='pvalue-textbox-min', input_max_id='pvalue-textbox-max', submit_button_id = 'pvalue-submit-button', reset_button_id='pvalue-reset-button'),
-                                ], open=True, style={'margin-bottom': '10px'}),
+                                ], 
+                                open=True, 
+                                style=left_panel_style),
                             html.Hr(style={'margin':'0px'}),
 
                             # Log2(foldchange) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on log₂(FoldChange)'),
                                 slider_layout(slider_id='foldchange-slider', input_min_id='foldchange-textbox-min', input_max_id='foldchange-textbox-max', submit_button_id = 'foldchange-submit-button', reset_button_id='foldchange-reset-button'),
-                                ], open=True, style={'margin-bottom': '10px'}),
+                                ], open=True, style=left_panel_style),
                             html.Hr(style={'margin':'0px'}),
 
                             # Log₁₀(basemean) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on log₁₀(BaseMean)'),
                                 slider_layout(slider_id='basemean-slider', input_min_id='basemean-textbox-min', input_max_id='basemean-textbox-max', submit_button_id = 'basemean-submit-button', reset_button_id='basemean-reset-button'),
-                                ], open=True, style={'margin-bottom': '10px'}),
+                                ], open=True, style=left_panel_style),
                             html.Hr(style={'margin':'0px'}),
                         ], 
                         style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
