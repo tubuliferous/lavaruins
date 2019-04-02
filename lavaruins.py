@@ -204,6 +204,7 @@ def serve_layout():
                     html.Div(
                         children=[
                             html.Details([
+                                html.Summary('File Upload'),
                                 dash_resumable_upload.Upload(
                                     id='upload-data',
                                     maxFiles=1,
