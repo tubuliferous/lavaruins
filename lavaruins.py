@@ -20,8 +20,8 @@ app = dash.Dash(__name__)
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
 auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
-# server = app.server
-dash_resumable_upload.decorate_server(app.server, "uploads")
+server = app.server
+dash_resumable_upload.decorate_server(server, "uploads")
 
 # Global homolog, synonym, etc. annotation import
 mgi_annos = pd.read_csv('resources/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
