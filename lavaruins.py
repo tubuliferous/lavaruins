@@ -24,7 +24,7 @@ auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
 dash_resumable_upload.decorate_server(app.server, "uploads")
 
 # Global homolog, synonym, etc. annotation import
-mgi_annos = pd.read_csv('data/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
+mgi_annos = pd.read_csv('resources/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
 
 with open("test_resources/Mouse Gene Ontology (GO)/tiny_go.obo", 'rt') as f:
     content = f.read()

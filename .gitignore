@@ -2,7 +2,6 @@ venv
 *.pyc
 .DS_Store
 .env
-Resources
 .~lock*
 activate
 *.swp
