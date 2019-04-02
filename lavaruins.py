@@ -6,13 +6,10 @@ from dash.dependencies import Input, Output, State
 import numpy as np
 from textwrap import dedent
 import pandas as pd
-import base64
-import io
 import dash_auth
 import uuid
-import ntpath
 import json
-import itertools, re, json
+import dash_resumable_upload
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -23,33 +20,14 @@ app = dash.Dash(__name__)
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
 auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
-server = app.server
+# server = app.server
+dash_resumable_upload.decorate_server(app.server, "uploads")
 
 # Global homolog, synonym, etc. annotation import
 mgi_annos = pd.read_csv('data/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
 
 with open("test_resources/Mouse Gene Ontology (GO)/tiny_go.obo", 'rt') as f:
-    content = f.read()    
-
-# Clean GO terms list
-def clean_go_terms(terms):
-    l = []
-    for term in terms:
-        if (len(re.findall('is_obsolete: true', term))==0) and (len(re.findall('id: GO:\d+', term)) > 0):
-            l.append(term)
-    return l
-
-def get_top_nodes(terms):
-    l = []
-    for term in terms: 
-        if len(re.findall('is_a: GO:\d+', term)) == 0:
-            l.append(term)
-    return l
-
-split_terms = content.split('\n\n')
-split_terms_clean = clean_go_terms(split_terms)
-top_nodes = get_top_nodes(split_terms_clean)
-len(top_nodes)
+    content = f.read()
 
 # Algorithmically determine the smallest and largest float values
 #   - For use with giving value to zero-valued p-values 
@@ -86,33 +64,21 @@ def find_float_limits():
 
     return last_minimum, last_maximum
 
-# Get base name from file path on any platform
-def path_leaf(path):
-    head, tail = ntpath.split(path)
-    return tail or ntpath.basename(head)
-
 # Take file input and return dataframe
-def parse_file_contents(contents, filename, date):
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
+def parse_file_contents(filename):
     try:
         if '.csv' in filename:
             # Assume that the user uploaded a CSV file
-            df = pd.read_csv(
-                io.StringIO(decoded.decode('utf-8')))
-        elif '.xls' in filename:
+            df = pd.read_csv('uploads/' + filename)
             # Assume that the user uploaded an excel file
-            df = pd.read_excel(io.BytesIO(decoded))
+        elif '.xls' in filename:
+            df = pd.read_excel('uploads/' + filename)
             # Assume that the user uploaded a TSV file 
         elif '.tsv' in filename:
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), sep='\t')
-        
-        return df, path_leaf(filename)
+            df = pd.read_csv('uploads/' + filename, sep='\t')
+        return df
     except Exception as e:
         print(e)
-        return html.Div([
-            'There was an error processing this file.'
-        ])
 
 # Setup gene information panel 
 def generate_gene_info(clickData, df=None):
@@ -231,39 +197,29 @@ def serve_layout():
         children=[
             # Hidden Div to store session
             html.Div(id='session-id', style={'display': 'none'}),
-            # dcc.Store(id='session', storage_type='session'),
             html.Img(src='assets/volcano.png', style={'width': '60px', 'display':'inline-block'}),
             html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline-block'}),
             html.Div(
                 children=[
                     html.Div(
                         children=[
-                           dcc.Upload(
-                                id='upload-data',
-                                children=html.Div([
-                                    'Drag and Drop or ',
-                                    html.A('Select File'),
-                                ]),
-                                style={
-                                    'width': '80%',
-                                    'height': '10vh',
-                                    'lineHeight': '17px',
-                                    'borderWidth': '1.5px',
-                                    'borderStyle': 'dashed',
-                                    'borderRadius': '5px',
-                                    'textAlign': 'center',
-                                    'padding-top': '10px',
-                                    'margin': '0px',
-                                },
-                                # Don't allow multiple files to be uploaded
-                                multiple=False,
-                            ),
-
                             html.Details([
-                                html.Summary('Filename'),
-                                html.Div(id='filename', style={'word-wrap':'break-word', 'margin-bottom':'6px'})],
+                                dash_resumable_upload.Upload(
+                                    id='upload-data',
+                                    maxFiles=1,
+                                    maxFileSize=1024*1024*1000,  # 100 MB
+                                    service="/upload_resumable",
+                                    textLabel="Drag and Drop or Click Here to Upload",
+                                    startButton=False,
+                                    cancelButton=False,
+                                    pauseButton=False,
+                                    chunkSize=500_000,
+                                    defaultStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
+                                    activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
+                                    completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'},
+                                )],
                                 open=True),
-                            html.Hr(style={'margin':'0px'}),
+
                             # Gene highlighter dropdown menu
                             html.Details([
                                 html.Summary('Highlight Genes'),
@@ -273,18 +229,21 @@ def serve_layout():
                                     multi=True,),], style={'margin-bottom':'10px'})],
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
+
                             # log₁₀(adjusted p-value) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on Transformed p-value'),
                                 slider_layout(slider_id='pvalue-slider', input_min_id='pvalue-textbox-min', input_max_id='pvalue-textbox-max', submit_button_id = 'pvalue-submit-button', reset_button_id='pvalue-reset-button'),
                                 ], open=True, style={'margin-bottom': '10px'}),
                             html.Hr(style={'margin':'0px'}),
+
                             # Log2(foldchange) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on log₂(FoldChange)'),
                                 slider_layout(slider_id='foldchange-slider', input_min_id='foldchange-textbox-min', input_max_id='foldchange-textbox-max', submit_button_id = 'foldchange-submit-button', reset_button_id='foldchange-reset-button'),
                                 ], open=True, style={'margin-bottom': '10px'}),
                             html.Hr(style={'margin':'0px'}),
+
                             # Log₁₀(basemean) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on log₁₀(BaseMean)'),
@@ -294,6 +253,7 @@ def serve_layout():
                         ], 
                         style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
                     ),
+
                     # Tab-accessed plots in the center of the layout
                     html.Div(
                         children=[
@@ -337,63 +297,60 @@ tab_selected_style = {
     'width':'16%'
 }
 
-tab_plot_volcano = dcc.Tab(
-    label='Volcano Plot',
-    children=[
-        html.Div([
-            dcc.Graph(
-                id='volcano-plot',
-                config={
-                    "displaylogo": False,
-                    'modeBarButtonsToRemove': [
-                        'pan2d', 
-                        'zoomIn2d',
-                        'zoomOut2d', 
-                        'autoScale2d', 
-                        'resetScale2d', 
-                        'hoverCompareCartesian', 
-                        'hoverClosestCartesian', 
-                        'toggleSpikelines',
-                        'select2d',
-                        'lasso2d',
-                    ]
-                },
-                style={'height':'80vh'} # To make graph adust with window
-            )
-        ], style={'width':'70%', 'display':'inline-block'}),
-        html.Div(id='gene-info-markdown-volcano', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'10px'})         
-    ], style=tab_style, selected_style=tab_selected_style
-)
-tab_plot_ma = dcc.Tab(
-    label='MA Plot',
-    children=[
-        html.Div([
-            dcc.Graph(
-                id='ma-plot',
-                config={
-                    "displaylogo": False,
-                    'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
-                },style={'height': '80vh'} # To make graph adust with window
-            ),
-        ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
-        html.Div(id='gene-info-markdown-ma', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'20px'})  
-    ], style=tab_style, selected_style=tab_selected_style
-)
-tab_plot_mavolc = dcc.Tab(
-        label='MAxVolc Plot',
-    children=[
-        html.Div([
-            dcc.Graph(
-                id='mavolc-plot',
-                config={
-                    "displaylogo": False,
-                    'modeBarButtonsToRemove': ['pan2d', 'zoomIn2d','zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
-                },style={'height': '80vh'} # To make graph adust with window
-            ),
-        ], style={'width':'70%', 'display':'inline-block', 'vertical-align':'top'}),
-        html.Div(id='gene-info-markdown-mavolc', style={'width':'30%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'20px'})  
-    ], style=tab_style, selected_style=tab_selected_style
-)
+def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
+    dim2_button_exceptions = [
+        'pan2d', 
+        'zoomIn2d',
+        'zoomOut2d', 
+        'autoScale2d', 
+        'resetScale2d', 
+        'hoverCompareCartesian', 
+        'hoverClosestCartesian', 
+        'toggleSpikelines',
+        'select2d',
+        'lasso2d',]
+
+    dim3_button_exceptions = [
+        'pan2d', 
+        'zoomIn2d',
+        'zoomOut2d',
+        'autoScale2d',
+        'resetScale2d',
+        'hoverCompareCartesian',
+        'hoverClosestCartesian',
+        'toggleSpikelines']
+
+    if type == '2D':
+        plot_config = {
+            'displaylogo': False,
+            'modeBarButtonsToRemove': dim2_button_exceptions}
+    if type == '3D':
+        plot_config={
+            "displaylogo": False,
+            'modeBarButtonsToRemove': dim3_button_exceptions}
+    return  dcc.Tab(
+        label=plot_label,
+        children=[
+            html.Div([
+                dcc.Graph(
+                    id=plot_id,
+                    config=plot_config,
+                    style={'height':'80vh'} # To make graph adust with window
+                )
+            ], style={'width':'70%', 'display':'inline-block'}),
+            html.Div(
+                id=gene_info_id, 
+                style={
+                    'width':'30%', 
+                    'display':'inline-block', 
+                    'vertical-align':'top', 
+                    'padding-top':'10px'})         
+        ], style=tab_style, selected_style=tab_selected_style
+    )
+
+tab_plot_volcano = generate_tab_plot('Volcano Plot', 'volcano-plot', 'gene-info-markdown-volcano', type='2D')
+tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', 'gene-info-markdown-ma', type='2D')
+tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', 'gene-info-markdown-mavolc', type='3D')
 
 app.layout = serve_layout()
 
@@ -418,7 +375,6 @@ def get_spaced_marks(min_mark, max_mark):
 @app.callback(
     [
         Output('session-id', 'children'),
-        Output('filename', 'children'),
         Output('pvalue-slider', 'min'),
         Output('pvalue-slider', 'max'),
         Output('pvalue-slider', 'marks'),
@@ -430,24 +386,17 @@ def get_spaced_marks(min_mark, max_mark):
         Output('basemean-slider', 'marks'),
     ],
     [
-        Input('upload-data', 'contents'),
-
+        Input('upload-data', 'fileNames'),
     ],
-    [
-        State('upload-data', 'filename'),
-        State('upload-data', 'last_modified'),
-     ]
 )
-def handle_df(
-    contents,
-    filename,
-    last_modified,
-):
+def handle_df(filenames):
     # Need to put session ID here (I suspect) so that there is a 
     # change that will trigger the other callbacks 
     session_id = str(uuid.uuid4())
-    if contents is not None:
-        df, basename = parse_file_contents(contents, filename, last_modified)
+    if filenames is not None:
+        # Only look at the last uploaded file
+        filename = filenames[-1]
+        df = parse_file_contents(filename)
         # Handle alternative gene name column
         df = df.rename(index=str, columns={"symbol": "gene_ID"})
 
@@ -484,7 +433,6 @@ def handle_df(
         max_transform_basemean = df['log10basemean'].max()
 
         return(session_id, 
-                basename,
                 min_transform_padj,
                 max_transform_padj,
                 get_spaced_marks(min_transform_padj, max_transform_padj),
@@ -614,6 +562,8 @@ def populate_graphs(
             mode='markers',
             text=df['gene_ID'],
             name='All Genes',
+            # Use different marker settings for WebGL because sizes
+            # render differently
             marker={'size':3, 'color':'black', 'opacity':0.5})]
 
         if dropdown_value is not None:
@@ -628,7 +578,7 @@ def populate_graphs(
                         # textposition=['bottom center'],
                         text=gene_slice_df['gene_ID'],
                         # textfont={'color':'red'},
-                        marker={'size':11, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
+                        marker={'size':11, 'line':{'width':2, 'color':'white'}},
                         name=gene_name
                     )
                 )
@@ -642,7 +592,7 @@ def populate_graphs(
                         text=gene_slice_df['gene_ID'],
                         # textfont={'color':'red'},
 
-                        marker={'size':11, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
+                        marker={'size':11, 'line':{'width':2, 'color':'white'}},
                         name=gene_name
                     )
                 )
@@ -657,7 +607,7 @@ def populate_graphs(
                         text=gene_slice_df['gene_ID'],
                         # textfont={'color':'red'},
 
-                        marker={'size':4, 'line':{'width':2, 'color':'rgb(255, 255, 255)'}},
+                        marker={'size':4, 'line':{'width':2, 'color':'white'}},
                         name=gene_name
                     )
                 )
@@ -688,15 +638,16 @@ def populate_graphs(
             'data':mv_traces,
             'layout':go.Layout(
                 hovermode='closest',
+                title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
                 scene = dict(
                     xaxis = dict(
-                        title='A: log<sub>10</sub>(baseMean)'),
+                        title='A'),
                     yaxis = dict(
-                        title='M:log<sub>2</sub>(FoldChange)'),
+                        title='M'),
                     zaxis = dict(
-                        title='Significance: -log<sub>10</sub>(padj)'),
-                    # Make z-axis appear twice as big as the other two axes
+                        title='Significance'),
                     aspectmode='manual',
+                    # Make all axes the same absolute visual length
                     aspectratio=go.layout.scene.Aspectratio(
                         x=1, y=1, z=1
                     )
