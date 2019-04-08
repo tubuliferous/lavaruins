@@ -80,7 +80,7 @@ def parse_file_contents(filename):
 # Setup gene information panel 
 def generate_gene_info(clickData, df=None):
     if clickData == 'default':
-        default_text = html.P(children = html.H4('Gene Info'), style={'textAlign':'center'})
+        default_text = html.P(children = html.H5('Click on plotted gene for information'), style={'textAlign':'left'})
         return default_text
     else:
         gene_name = clickData['points'][0]['text']
@@ -199,6 +199,7 @@ def serve_layout():
             html.Div(id='session-id', style={'display':'none'}),
             html.Img(src='assets/volcano.png', style={'width':'60px', 'display':'inline'}),
             html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'}),
+            html.P(style={'padding-bottom':'18px'}),
             html.Div(
                 children=[
                     html.Div(
