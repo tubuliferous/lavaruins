@@ -197,8 +197,8 @@ def serve_layout():
         children=[
             # Hidden Div to store session
             html.Div(id='session-id', style={'display':'none'}),
-            html.Img(src='assets/volcano.png', style={'width':'60px', 'display':'inline-block'}),
-            html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline-block'}),
+            html.Img(src='assets/volcano.png', style={'width':'60px', 'display':'inline'}),
+            html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'}),
             html.Div(
                 children=[
                     html.Div(
