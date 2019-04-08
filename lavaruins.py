@@ -21,7 +21,7 @@ app = dash.Dash(__name__)
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
 auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
 server = app.server
-dash_resumable_upload.decorate_server(server, "uploads")
+dash_resumable_upload.decorate_server(server, 'uploads')
 
 # Global homolog, synonym, etc. annotation import
 mgi_annos = pd.read_csv('resources/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
@@ -30,15 +30,15 @@ mgi_annos = pd.read_csv('resources/homologs_expanded_synonyms.tsv.gz', sep='\t',
 #   - For use with giving value to zero-valued p-values 
 #   - Source: https://stackoverflow.com/questions/1835787/what-is-the-range-of-values-a-float-can-have-in-python
 def find_float_limits():
-    """Return a tuple of min, max positive numbers
-    representable by the platform's float"""
+    '''Return a tuple of min, max positive numbers
+    representable by the platform's float'''
 
     # first, make sure a float's a float
     if 1.0/10*10 == 10.0:
-        raise RuntimeError("Your platform's floats aren't")
+        raise RuntimeError('Your platform\'s floats aren\'t')
 
     minimum= maximum= 1.0
-    infinity= float("+inf")
+    infinity= float('+inf')
 
     # first find minimum
     last_minimum= 2*minimum
@@ -148,7 +148,7 @@ def generate_gene_info(clickData, df=None):
             '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
             '\n\n**Location:** {}'.format(location) +
             '\n\n**Functional Name:** {}'.format(function_name)))
-        mgi_html_id = html.B('MGI ID: ')
+        mgi_html_id = html.B('MGI ID:')
         mgi_html_link = html.A(mgi_id, href=mgi_link, target='_blank')
         human_header = html.Span('Human Homolog', style={'font-size':'120%', 'text-decoration':'underline'})
         human_md = dcc.Markdown(dedent('''''' +
@@ -156,9 +156,9 @@ def generate_gene_info(clickData, df=None):
             '\n\n**Human Synonyms:** *{}*'.format(human_synonyms) +
             # Human homologs almost always have similar functional names, so leave out for now
             '\n\n**Homolog Location:** {}'.format(human_location)))
-        hgnc_html_id = html.B('HGNC ID: ')
+        hgnc_html_id = html.B('HGNC ID:')
         hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
-        omim_html_id = html.B('OMIM ID: ') 
+        omim_html_id = html.B('OMIM ID:') 
         omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
 
         return [html.P('\n\n'),
@@ -180,9 +180,9 @@ def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset
         html.Div([
             # !!Consider using style 'display':table-cell' for better fromatting of components below
             dcc.RangeSlider(id=slider_id, step=0.01)], style={'margin-bottom':'25px'}),
-            html.Div(['Min: ', dcc.Input(id=input_min_id, style={'width':'40px'}),], 
+            html.Div(['Min:', dcc.Input(id=input_min_id, style={'width':'40px'}),], 
                 style={'width':'50px', 'display':'inline-block'}), 
-            html.Div(['Max: ', dcc.Input(id=input_max_id, style={'width':'40px'}),], 
+            html.Div(['Max:', dcc.Input(id=input_max_id, style={'width':'40px'}),], 
                 style={'width':'50px','display':'inline-block'}),
             html.Button(id=submit_button_id, children='Submit', style={'width':'55px', 'display':'inline-block', 'padding':'0px', 'margin':'0px', 'height':'30px', 'lineHeight':'0px', 'margin-left':'5px'}),
             html.Button(id=reset_button_id, children='Reset',  style={'width':'52px', 'display':'inline-block', 'padding':'0px', 'margin':'0px', 'height':'30px', 'lineHeight':'0px', 'margin-left':'5px'})
@@ -196,8 +196,8 @@ def serve_layout():
     return html.Div(
         children=[
             # Hidden Div to store session
-            html.Div(id='session-id', style={'display': 'none'}),
-            html.Img(src='assets/volcano.png', style={'width': '60px', 'display':'inline-block'}),
+            html.Div(id='session-id', style={'display':'none'}),
+            html.Img(src='assets/volcano.png', style={'width':'60px', 'display':'inline-block'}),
             html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline-block'}),
             html.Div(
                 children=[
@@ -209,8 +209,8 @@ def serve_layout():
                                     id='upload-data',
                                     maxFiles=1,
                                     maxFileSize=1024*1024*1000,  # 100 MB
-                                    service="/upload_resumable",
-                                    textLabel="Drag and Drop or Click Here to Upload",
+                                    service='/upload_resumable',
+                                    textLabel='Drag and Drop or Click Here to Upload',
                                     startButton=False,
                                     cancelButton=False,
                                     pauseButton=False,
@@ -272,7 +272,7 @@ def serve_layout():
                                     tab_plot_mavolc,
                                 ], style=tabs_styles,
                             ), 
-                        ], style={'width':'80%', 'display':'inline-block', 'padding':'0px'},
+                        ], style={'width':'80%', 'display':'inline-block'},
                     ),
                 ],
             ),
@@ -287,21 +287,23 @@ marker_settings = {
 }
 
 tabs_styles = {
-    'height': '38px'
+    'height':'38px',
+    'display':'inline-block',
+    'white-space':'nowrap',
 }
 tab_style = {
-    'borderBottom': '1px solid #d6d6d6',
-    'padding': '6px',
-    'fontWeight': 'bold',
-    'width':'16%'
+    'borderBottom':'1px solid #d6d6d6',
+    'padding':'6px',
+    'fontWeight':'bold',
+    'width':'150px',
 }
 tab_selected_style = {
-    'borderTop': '1px solid #d6d6d6',
-    'borderBottom': '1px solid #d6d6d6',
-    'backgroundColor': '#717272',
-    'color': 'white',
-    'padding': '6px',
-    'width':'16%'
+    'borderTop':'1px solid #d6d6d6',
+    'borderBottom':'1px solid #d6d6d6',
+    'backgroundColor':'#717272',
+    'color':'white',
+    'padding':'6px',
+    'width':'150px',
 }
 
 def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
@@ -333,7 +335,7 @@ def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
             'modeBarButtonsToRemove': dim2_button_exceptions}
     if type == '3D':
         plot_config={
-            "displaylogo": False,
+            'displaylogo': False,
             'modeBarButtonsToRemove': dim3_button_exceptions}
     return dcc.Tab(
         label=plot_label,
@@ -376,7 +378,7 @@ def get_spaced_marks(min_mark, max_mark):
             seq.pop(0)
         seq.insert(int(0), min_mark)
     # Fix for 0 label not shown on slider mark
-    marks={int(i) if i % 1 == 0 else i: '{:.0f}'.format(i) for i in seq} 
+    marks={int(i) if i % 1 == 0 else i:'{:.0f}'.format(i) for i in seq} 
     return marks
 
 #Disk write callback and set session ID
@@ -406,7 +408,7 @@ def handle_df(filenames):
         filename = filenames[-1]
         df = parse_file_contents(filename)
         # Handle alternative gene name column
-        df = df.rename(index=str, columns={"symbol": "gene_ID"})
+        df = df.rename(index=str, columns={'symbol':'gene_ID'})
 
         global_vars = {
             'pvalue_reset_click_count':None,
@@ -530,7 +532,7 @@ def populate_graphs(
 ):
     if session_id is not None:
         df = pd.read_json('temp_data_files/' + session_id)
-        df = df.rename(index=str, columns={"symbol": "gene_ID"})
+        df = df.rename(index=str, columns={'symbol':'gene_ID'})
 
         if pvalue_slider_value is not None:
             min_slider = pvalue_slider_value[0]
