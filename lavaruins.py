@@ -272,7 +272,7 @@ def serve_layout():
                                     tab_plot_mavolc,
                                 ], style=tabs_styles,
                             ), 
-                        ], style={'width':'80%', 'display':'inline-block'},
+                        ], style={'width':'80%', 'display':'inline-block', 'padding':'0px'},
                     ),
                 ],
             ),
@@ -335,14 +335,15 @@ def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
         plot_config={
             "displaylogo": False,
             'modeBarButtonsToRemove': dim3_button_exceptions}
-    return  dcc.Tab(
+    return dcc.Tab(
         label=plot_label,
         children=[
             html.Div([
                 dcc.Graph(
                     id=plot_id,
                     config=plot_config,
-                    style={'height':'80vh'} # To make graph adust with window
+                    # To make graph adjust dynamically with window size
+                    style={'height':'80vh'} 
                 )
             ], style={'width':'70%', 'display':'inline-block'}),
             html.Div(
@@ -619,6 +620,7 @@ def populate_graphs(
                     )
                 )
 
+        dim2_plot_margins = {'t':100, 'r':30, 'l':75, 'b':100}
         volc_figure = {
         'data': v_traces,
         'layout':go.Layout(
@@ -628,6 +630,7 @@ def populate_graphs(
             title='Significance vs. Effect Size',
             xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, # !!Figure out how to change size
             yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
+            margin=dim2_plot_margins
             )
         }
 
@@ -638,6 +641,7 @@ def populate_graphs(
                 title='Log Ratio (M) vs. Mean Average (A)',
                 xaxis={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'}, # !!Figure out how to change size
                 yaxis={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'},
+                margin=dim2_plot_margins
             )
         }
 
@@ -657,7 +661,7 @@ def populate_graphs(
                     # Make all axes the same absolute visual length
                     aspectratio=go.layout.scene.Aspectratio(
                         x=1, y=1, z=1
-                    )
+                    ),
                 ),
             )
         }
