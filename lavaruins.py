@@ -161,19 +161,41 @@ def generate_gene_info(clickData, df=None):
         omim_html_id = html.B('OMIM ID:') 
         omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
 
-        return [html.P('\n\n'),
-               mouse_header,
-               mouse_md, 
-               mgi_html_id, 
-               mgi_html_link,
-               html.P('\n\n'),
-               human_header,
-               human_md, 
-               hgnc_html_id, 
-               hgnc_html_link,
-               html.P('\n'),
-               omim_html_id,
-               omim_html_link]
+        mouse_details = html.Details([
+                html.Summary(mouse_header, style={'position': 'relative', 'left':'-20px'}),
+                html.Div([
+                    mouse_md, 
+                    mgi_html_id, 
+                    mgi_html_link
+                ])
+            ], open=True)
+
+        human_details = html.Details([
+                html.Summary(human_header, style={'position':'relative', 'left':'-20px'}),
+                html.Div([
+                   human_md, 
+                   hgnc_html_id, 
+                   hgnc_html_link,
+                   html.P('\n'),
+                   omim_html_id,
+                   omim_html_link
+                ])
+            ], open=True)
+
+        # return [html.P('\n\n'),
+        #        mouse_header,
+        #        mouse_md, 
+        #        mgi_html_id, 
+        #        mgi_html_link,
+        #        html.P('\n\n'),
+        #        human_header,
+        #        human_md, 
+        #        hgnc_html_id, 
+        #        hgnc_html_link,
+        #        html.P('\n'),
+        #        omim_html_id,
+        #        omim_html_link]
+        return [mouse_details, human_details]
 
 def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
     return html.Div([
@@ -355,7 +377,7 @@ def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
                     'width':'30%', 
                     'display':'inline-block', 
                     'vertical-align':'top', 
-                    'padding-top':'10px'})         
+                })         
         ], style=tab_style, selected_style=tab_selected_style
     )
 
@@ -625,15 +647,15 @@ def populate_graphs(
 
         dim2_plot_margins = {'t':100, 'r':30, 'l':75, 'b':100}
         volc_figure = {
-        'data': v_traces,
-        'layout':go.Layout(
-            # Allows points to be highlighted when selected using built-in plot features 
-            # Consider using "clickmode='event+select'" for box selection
-            hovermode='closest',
-            title='Significance vs. Effect Size',
-            xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, # !!Figure out how to change size
-            yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
-            margin=dim2_plot_margins
+            'data': v_traces,
+            'layout':go.Layout(
+                # Allows points to be highlighted when selected using built-in plot features 
+                # Consider using "clickmode='event+select'" for box selection
+                hovermode='closest',
+                title='Significance vs. Effect Size',
+                xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, # !!Figure out how to change size
+                yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
+                margin=dim2_plot_margins,
             )
         }
 
@@ -644,7 +666,7 @@ def populate_graphs(
                 title='Log Ratio (M) vs. Mean Average (A)',
                 xaxis={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'}, # !!Figure out how to change size
                 yaxis={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'},
-                margin=dim2_plot_margins
+                margin=dim2_plot_margins,
             )
         }
 

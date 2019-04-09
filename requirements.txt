@@ -62,3 +62,5 @@ wcwidth==0.1.7
 Werkzeug==0.14.1
 xlrd==1.0.0
 dash-resumable-upload==0.0.3
+cookiecutter==1.6.0
+react==4.3.0
