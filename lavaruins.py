@@ -182,19 +182,6 @@ def generate_gene_info(clickData, df=None):
                 ])
             ], open=True)
 
-        # return [html.P('\n\n'),
-        #        mouse_header,
-        #        mouse_md, 
-        #        mgi_html_id, 
-        #        mgi_html_link,
-        #        html.P('\n\n'),
-        #        human_header,
-        #        human_md, 
-        #        hgnc_html_id, 
-        #        hgnc_html_link,
-        #        html.P('\n'),
-        #        omim_html_id,
-        #        omim_html_link]
         return [mouse_details, human_details]
 
 def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
@@ -330,6 +317,8 @@ tab_selected_style = {
 }
 
 def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
+    # Mode Bar button descriptions: 
+    #   https://github.com/plotly/plotly.github.io/blob/master/_posts/fundamentals/2015-09-01-getting-to-know-the-plotly-modebar.md
     dim2_button_exceptions = [
         'pan2d', 
         'zoomIn2d',
@@ -340,17 +329,19 @@ def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
         'hoverClosestCartesian', 
         'toggleSpikelines',
         'select2d',
-        'lasso2d',]
+        'lasso2d',
+        'zoom2d'
+    ]
 
     dim3_button_exceptions = [
-        'pan2d', 
-        'zoomIn2d',
-        'zoomOut2d',
-        'autoScale2d',
-        'resetScale2d',
-        'hoverCompareCartesian',
-        'hoverClosestCartesian',
-        'toggleSpikelines']
+        'hoverClosest3d',
+        'resetCameraLastSave3d',
+        'resetCameraDefault3d',
+        'tableRotation',
+        'orbitRotation',
+        'pan3d',
+        'zoom3d'
+    ]
 
     if type == '2D':
         plot_config = {
@@ -377,6 +368,7 @@ def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
                     'width':'30%', 
                     'display':'inline-block', 
                     'vertical-align':'top', 
+                    # 'margin-top':'-10px'
                 })         
         ], style=tab_style, selected_style=tab_selected_style
     )
