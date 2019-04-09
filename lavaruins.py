@@ -198,9 +198,106 @@ def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset
         ], style={'width':'90%'}
     )
 
-def serve_layout():
+# Generate marks sequences for sliders
+def get_spaced_marks(min_mark, max_mark):
+    seq = np.linspace(min_mark, max_mark, 4).tolist() 
+    if max_mark not in seq:
+        # remove old maximum value if too close to the high end of the slider
+        if (max_mark - max(seq)) < (0.5*(seq[2] - seq[1])):
+            seq.pop()
+        seq.append(max_mark)
+    if min_mark not in seq:
+        # remove old minimum value if too close to the low end of the slider
+        if (min_mark - seq[0]) < (0.5*(seq[2] - seq[1])):
+            seq.pop(0)
+        seq.insert(int(0), min_mark)
+    # Fix for 0 label not shown on slider mark
+    marks={int(i) if i % 1 == 0 else i:'{:.0f}'.format(i) for i in seq} 
+    return marks
+
+# Generate plot-containing tab
+def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
+    # Mode Bar button descriptions: 
+    #   https://github.com/plotly/plotly.github.io/blob/master/_posts/fundamentals/2015-09-01-getting-to-know-the-plotly-modebar.md
+    dim2_button_exceptions = [
+        'pan2d', 
+        'zoomIn2d',
+        'zoomOut2d', 
+        'autoScale2d', 
+        'resetScale2d', 
+        'hoverCompareCartesian', 
+        'hoverClosestCartesian', 
+        'toggleSpikelines',
+        'select2d',
+        'lasso2d',
+        'zoom2d'
+    ]
+
+    dim3_button_exceptions = [
+        'hoverClosest3d',
+        'resetCameraLastSave3d',
+        'resetCameraDefault3d',
+        'tableRotation',
+        'orbitRotation',
+        'pan3d',
+        'zoom3d'
+    ]
+
+    tab_style = {
+        'borderBottom':'1px solid #d6d6d6',
+        'padding':'6px',
+        'fontWeight':'bold',
+        'width':'150px',
+    }
+    tab_selected_style = {
+        'borderTop':'1px solid #d6d6d6',
+        'borderBottom':'1px solid #d6d6d6',
+        'backgroundColor':'#717272',
+        'color':'white',
+        'padding':'6px',
+        'width':'150px',
+    }
+
+    if type == '2D':
+        plot_config = {
+            'displaylogo': False,
+            'modeBarButtonsToRemove': dim2_button_exceptions}
+    if type == '3D':
+        plot_config={
+            'displaylogo': False,
+            'modeBarButtonsToRemove': dim3_button_exceptions}
+    return dcc.Tab(
+        label=plot_label,
+        children=[
+            html.Div([
+                dcc.Graph(
+                    id=plot_id,
+                    config=plot_config,
+                    # To make graph adjust dynamically with window size
+                    style={'height':'80vh'} 
+                )
+            ], style={'width':'70%', 'display':'inline-block'}),
+            html.Div(
+                id=gene_info_id, 
+                style={
+                    'width':'30%', 
+                    'display':'inline-block', 
+                    'vertical-align':'top', 
+                    # 'margin-top':'-10px'
+                })         
+        ], style=tab_style, selected_style=tab_selected_style
+    )
+
+# Set up the basic plot layout
+def serve_layout(tab_plots=[]):
 
     left_panel_style = {'margin-bottom':'5px','margin-top':'5px'}
+
+    tabs_styles = {
+        'height':'38px',
+        'display':'inline-block',
+        'white-space':'nowrap',
+    }
 
     return html.Div(
         children=[
@@ -276,11 +373,8 @@ def serve_layout():
                         children=[
                             dcc.Tabs(
                                 id='plot-tabs',
-                                children=[
-                                    tab_plot_volcano,
-                                    tab_plot_ma,
-                                    tab_plot_mavolc,
-                                ], style=tabs_styles,
+                                children=tab_plots, 
+                                style=tabs_styles,
                             ), 
                         ], style={'width':'80%', 'display':'inline-block'},
                     ),
@@ -289,112 +383,11 @@ def serve_layout():
         ]
     )
 
-# Basic app layout and plots 
-marker_settings = {
-    'color':'black',
-    'size':8,
-    'opacity':0.5
-}
-
-tabs_styles = {
-    'height':'38px',
-    'display':'inline-block',
-    'white-space':'nowrap',
-}
-tab_style = {
-    'borderBottom':'1px solid #d6d6d6',
-    'padding':'6px',
-    'fontWeight':'bold',
-    'width':'150px',
-}
-tab_selected_style = {
-    'borderTop':'1px solid #d6d6d6',
-    'borderBottom':'1px solid #d6d6d6',
-    'backgroundColor':'#717272',
-    'color':'white',
-    'padding':'6px',
-    'width':'150px',
-}
-
-def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
-    # Mode Bar button descriptions: 
-    #   https://github.com/plotly/plotly.github.io/blob/master/_posts/fundamentals/2015-09-01-getting-to-know-the-plotly-modebar.md
-    dim2_button_exceptions = [
-        'pan2d', 
-        'zoomIn2d',
-        'zoomOut2d', 
-        'autoScale2d', 
-        'resetScale2d', 
-        'hoverCompareCartesian', 
-        'hoverClosestCartesian', 
-        'toggleSpikelines',
-        'select2d',
-        'lasso2d',
-        'zoom2d'
-    ]
-
-    dim3_button_exceptions = [
-        'hoverClosest3d',
-        'resetCameraLastSave3d',
-        'resetCameraDefault3d',
-        'tableRotation',
-        'orbitRotation',
-        'pan3d',
-        'zoom3d'
-    ]
-
-    if type == '2D':
-        plot_config = {
-            'displaylogo': False,
-            'modeBarButtonsToRemove': dim2_button_exceptions}
-    if type == '3D':
-        plot_config={
-            'displaylogo': False,
-            'modeBarButtonsToRemove': dim3_button_exceptions}
-    return dcc.Tab(
-        label=plot_label,
-        children=[
-            html.Div([
-                dcc.Graph(
-                    id=plot_id,
-                    config=plot_config,
-                    # To make graph adjust dynamically with window size
-                    style={'height':'80vh'} 
-                )
-            ], style={'width':'70%', 'display':'inline-block'}),
-            html.Div(
-                id=gene_info_id, 
-                style={
-                    'width':'30%', 
-                    'display':'inline-block', 
-                    'vertical-align':'top', 
-                    # 'margin-top':'-10px'
-                })         
-        ], style=tab_style, selected_style=tab_selected_style
-    )
-
 tab_plot_volcano = generate_tab_plot('Volcano Plot', 'volcano-plot', 'gene-info-markdown-volcano', type='2D')
 tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', 'gene-info-markdown-ma', type='2D')
 tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', 'gene-info-markdown-mavolc', type='3D')
 
-app.layout = serve_layout()
-
-# Generate marks sequences for sliders
-def get_spaced_marks(min_mark, max_mark):
-    seq = np.linspace(min_mark, max_mark, 4).tolist() 
-    if max_mark not in seq:
-        # remove old maximum value if too close to the high end of the slider
-        if (max_mark - max(seq)) < (0.5*(seq[2] - seq[1])):
-            seq.pop()
-        seq.append(max_mark)
-    if min_mark not in seq:
-        # remove old minimum value if too close to the low end of the slider
-        if (min_mark - seq[0]) < (0.5*(seq[2] - seq[1])):
-            seq.pop(0)
-        seq.insert(int(0), min_mark)
-    # Fix for 0 label not shown on slider mark
-    marks={int(i) if i % 1 == 0 else i:'{:.0f}'.format(i) for i in seq} 
-    return marks
+app.layout = serve_layout([tab_plot_volcano, tab_plot_ma, tab_plot_mavolc])
 
 #Disk write callback and set session ID
 @app.callback(
@@ -564,13 +557,19 @@ def populate_graphs(
             max_slider = basemean_slider_value[1]
             df = df[df['log10basemean'].between(min_slider, max_slider)]
 
+        marker_settings_2d = {
+            'color':'black',
+            'size':8,
+            'opacity':0.5
+        }
+
         v_traces = [go.Scattergl(
             x=df['log2FoldChange'],
             y=df['neg_log10_padj'],
             mode='markers',
             text=df['gene_ID'],
             name='All Genes',
-            marker=marker_settings)]
+            marker=marker_settings_2d)]
 
         m_traces = [go.Scattergl(
             x=df['log10basemean'],
@@ -578,7 +577,7 @@ def populate_graphs(
             mode='markers',
             text=df['gene_ID'],
             name='All Genes',
-            marker=marker_settings)]
+            marker=marker_settings_2d)]
 
         mv_traces = [go.Scatter3d(
             x=df['log10basemean'],
