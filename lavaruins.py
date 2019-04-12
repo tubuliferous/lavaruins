@@ -410,8 +410,10 @@ app.layout = serve_layout([tab_plot_volcano, tab_plot_ma, tab_plot_mavolc])
 def handle_df(filenames):
     # Need to put session ID here (I suspect) so that there is a 
     # change that will trigger the other callbacks 
-    session_id = str(uuid.uuid4())
-    if filenames is not None:
+    if filenames is None:
+         raise dash.exceptions.PreventUpdate()
+    else:
+        session_id = str(uuid.uuid4())
         # Only look at the last uploaded file
         filename = filenames[-1]
         df = parse_file_contents(filename)
@@ -490,23 +492,26 @@ def slider_setup(measurement_name):
         textbox_min,
         textbox_max,
     ):
-        with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
-            global_vars = json.load(json_read)
+        if session_id is None:
+            raise dash.exceptions.PreventUpdate()
+        else:
+            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
+                global_vars = json.load(json_read)
 
-        set_min_transform = slider_min
-        set_max_transform = slider_max
-        if textbox_min is not None:
-            set_min_transform = float(textbox_min)
-        if textbox_max is not None:
-            set_max_transform = float(textbox_max)
-        if global_vars[measurement_name + '_reset_click_count'] is not reset_button:
             set_min_transform = slider_min
             set_max_transform = slider_max
-            global_vars[measurement_name + '_reset_click_count'] = reset_button
-            with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-                json.dump(global_vars, json_write) 
-         
-        return  [set_min_transform, set_max_transform]
+            if textbox_min is not None:
+                set_min_transform = float(textbox_min)
+            if textbox_max is not None:
+                set_max_transform = float(textbox_max)
+            if global_vars[measurement_name + '_reset_click_count'] is not reset_button:
+                set_min_transform = slider_min
+                set_max_transform = slider_max
+                global_vars[measurement_name + '_reset_click_count'] = reset_button
+                with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
+                    json.dump(global_vars, json_write) 
+             
+            return  [set_min_transform, set_max_transform]
 
 slider_setup('pvalue')
 slider_setup('foldchange')
@@ -517,9 +522,12 @@ slider_setup('basemean')
     Output('gene-dropdown', 'options'),
     [Input('session-id', 'children')])
 def populate_gene_dropdown(session_id):
-    df = pd.read_json('temp_data_files/' + session_id)
-    dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
-    return dropdown_options
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        df = pd.read_json('temp_data_files/' + session_id)
+        dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
+        return dropdown_options
 
 # Generate plots from imported RNAseq file
 @app.callback([
@@ -538,7 +546,9 @@ def populate_graphs(
     foldchange_slider_value, 
     basemean_slider_value
 ):
-    if session_id is not None:
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
         df = pd.read_json('temp_data_files/' + session_id)
         df = df.rename(index=str, columns={'symbol':'gene_ID'})
 
@@ -685,40 +695,21 @@ def populate_graphs(
     return volc_figure, ma_figure, mavolc_figure
 
 # Populate gene information panel from volcano plot click
-@app.callback(
-    Output('gene-info-markdown-volcano', 'children'),
-    [Input('volcano-plot', 'clickData'), 
-     Input('session-id', 'children')])
-def update_gene_info_volcano(click, session_id):
-    df = pd.read_json('temp_data_files/' + session_id)
-    if click:
-        return generate_gene_info(clickData=click, df=df)
-    else:
-        return generate_gene_info('default')
+def populate_gene_info_panel(output_panel, input_plot):
+    @app.callback(
+        Output(output_panel, 'children'),
+        [Input(input_plot, 'clickData'), 
+        Input('session-id', 'children')])
+    def update_gene_info(click, session_id):
+        if click:
+            df = pd.read_json('temp_data_files/' + session_id)
+            return generate_gene_info(clickData=click, df=df)
+        else:
+            return generate_gene_info('default')
 
-# Populate gene information panel from MA plot click
-@app.callback(
-    Output('gene-info-markdown-ma', 'children'),
-    [Input('ma-plot', 'clickData'), 
-     Input('session-id', 'children')])
-def update_gene_info_ma(click, session_id):
-    df = pd.read_json('temp_data_files/' + session_id)
-    if click:
-        return generate_gene_info(clickData=click, df=df)
-    else:
-        return generate_gene_info('default')
-
-# Populate gene information panel from MA x Volcano plot 
-@app.callback(
-    Output('gene-info-markdown-mavolc', 'children'),
-    [Input('mavolc-plot', 'clickData'), 
-     Input('session-id', 'children')])
-def update_gene_info_mavolc(click, session_id):
-    df = pd.read_json('temp_data_files/' + session_id)
-    if click:
-        return generate_gene_info(clickData=click, df=df)
-    else:
-        return generate_gene_info('default')
+populate_gene_info_panel('gene-info-markdown-volcano', 'volcano-plot')
+populate_gene_info_panel('gene-info-markdown-ma', 'ma-plot')
+populate_gene_info_panel('gene-info-markdown-mavolc', 'mavolc-plot')
 
 if __name__ == '__main__':
     app.run_server()
