@@ -1,6 +1,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_renderer
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
 import numpy as np
@@ -15,6 +16,7 @@ import dash_resumable_upload
 pd.set_option('display.max_columns', 500)
 
 # App setup
+# dash_renderer._set_react_version('16.2.0')
 app = dash.Dash(__name__)
 
 # Authentication
@@ -148,7 +150,7 @@ def generate_gene_info(clickData, df=None):
             '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
             '\n\n**Location:** {}'.format(location) +
             '\n\n**Functional Name:** {}'.format(function_name)))
-        mgi_html_id = html.B('MGI ID:')
+        mgi_html_id = html.B('MGI ID: ')
         mgi_html_link = html.A(mgi_id, href=mgi_link, target='_blank')
         human_header = html.Span('Human Homolog', style={'font-size':'120%', 'text-decoration':'underline'})
         human_md = dcc.Markdown(dedent('''''' +
@@ -156,9 +158,9 @@ def generate_gene_info(clickData, df=None):
             '\n\n**Human Synonyms:** *{}*'.format(human_synonyms) +
             # Human homologs almost always have similar functional names, so leave out for now
             '\n\n**Homolog Location:** {}'.format(human_location)))
-        hgnc_html_id = html.B('HGNC ID:')
+        hgnc_html_id = html.B('HGNC ID: ')
         hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
-        omim_html_id = html.B('OMIM ID:') 
+        omim_html_id = html.B('OMIM ID: ')
         omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
 
         mouse_details = html.Details([
