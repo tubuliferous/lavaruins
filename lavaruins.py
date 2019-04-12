@@ -1,7 +1,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-import dash_renderer
+# import dash_renderer
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
 import numpy as np
@@ -11,6 +11,7 @@ import dash_auth
 import uuid
 import json
 import dash_resumable_upload
+import time
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -80,12 +81,12 @@ def parse_file_contents(filename):
         print(e)
 
 # Setup gene information panel 
-def generate_gene_info(clickData, df=None):
-    if clickData == 'default':
+def generate_gene_info(clickdata, df=None):
+    if clickdata == 'default':
         default_text = html.P(children = html.H5('Click on plotted gene for information'), style={'textAlign':'left'})
         return default_text
     else:
-        gene_name = clickData['points'][0]['text']
+        gene_name = clickdata['points'][0]['text']
         
         neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
         log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
@@ -218,7 +219,7 @@ def get_spaced_marks(min_mark, max_mark):
     return marks
 
 # Generate plot-containing tab
-def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
+def generate_tab_plot(plot_label, plot_id, type):
     # Mode Bar button descriptions: 
     #   https://github.com/plotly/plotly.github.io/blob/master/_posts/fundamentals/2015-09-01-getting-to-know-the-plotly-modebar.md
     dim2_button_exceptions = [
@@ -269,31 +270,24 @@ def generate_tab_plot(plot_label, plot_id, gene_info_id, type):
             'displaylogo': False,
             'modeBarButtonsToRemove': dim3_button_exceptions}
     return dcc.Tab(
-        label=plot_label,
-        children=[
-            html.Div([
-                dcc.Graph(
-                    id=plot_id,
-                    config=plot_config,
-                    # To make graph adjust dynamically with window size
-                    style={'height':'80vh'} 
-                )
-            ], style={'width':'70%', 'display':'inline-block'}),
-            html.Div(
-                id=gene_info_id, 
-                style={
-                    'width':'30%', 
-                    'display':'inline-block', 
-                    'vertical-align':'top', 
-                    # 'margin-top':'-10px'
-                })         
+            label=plot_label,
+            children=[
+                html.Div([
+                    dcc.Graph(
+                        id=plot_id,
+                        config=plot_config,
+                        # To make graph adjust dynamically with window size
+                        style={'height':'80vh'} 
+                    )
+                ]
+            ),       
         ], style=tab_style, selected_style=tab_selected_style
     )
 
 # Set up the basic plot layout
 def serve_layout(tab_plots=[]):
 
-    left_panel_style = {'margin-bottom':'5px','margin-top':'5px'}
+    left_panel_details_style = {'margin-bottom':'5px','margin-top':'5px'}
 
     tabs_styles = {
         'height':'38px',
@@ -305,9 +299,15 @@ def serve_layout(tab_plots=[]):
         children=[
             # Hidden Div to store session
             html.Div(id='session-id', style={'display':'none'}),
+            # Store timestamps of plot clicks help determine last plot clicked
+            html.Div(id='volcano-plot-timediv', style={'display':'none'}),
+            html.Div(id='ma-plot-timediv', style={'display':'none'}),
+            html.Div(id='mavolc-plot-timediv', style={'display':'none'}),
+            # App title header
             html.Img(src='assets/volcano.png', style={'width':'60px', 'display':'inline'}),
             html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'}),
             html.P(style={'padding-bottom':'18px'}),
+            # App body
             html.Div(
                 children=[
                     html.Div(
@@ -330,7 +330,7 @@ def serve_layout(tab_plots=[]):
 
                                 )],
                                 open=True,
-                                style=left_panel_style),
+                                style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
 
                             # Gene highlighter dropdown menu
@@ -340,7 +340,7 @@ def serve_layout(tab_plots=[]):
                                     dcc.Dropdown(
                                     id='gene-dropdown',
                                     multi=True,),])],
-                                style=left_panel_style,
+                                style=left_panel_details_style,
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
 
@@ -350,21 +350,21 @@ def serve_layout(tab_plots=[]):
                                 slider_layout(slider_id='pvalue-slider', input_min_id='pvalue-textbox-min', input_max_id='pvalue-textbox-max', submit_button_id = 'pvalue-submit-button', reset_button_id='pvalue-reset-button'),
                                 ], 
                                 open=True, 
-                                style=left_panel_style),
+                                style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
 
                             # Log2(foldchange) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on log₂(FoldChange)'),
                                 slider_layout(slider_id='foldchange-slider', input_min_id='foldchange-textbox-min', input_max_id='foldchange-textbox-max', submit_button_id = 'foldchange-submit-button', reset_button_id='foldchange-reset-button'),
-                                ], open=True, style=left_panel_style),
+                                ], open=True, style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
 
                             # Log₁₀(basemean) filter sliders and buttons
                             html.Details([
                                 html.Summary('Filter on log₁₀(BaseMean)'),
                                 slider_layout(slider_id='basemean-slider', input_min_id='basemean-textbox-min', input_max_id='basemean-textbox-max', submit_button_id = 'basemean-submit-button', reset_button_id='basemean-reset-button'),
-                                ], open=True, style=left_panel_style),
+                                ], open=True, style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
                         ], 
                         style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
@@ -378,16 +378,17 @@ def serve_layout(tab_plots=[]):
                                 children=tab_plots, 
                                 style=tabs_styles,
                             ), 
-                        ], style={'width':'80%', 'display':'inline-block'},
+                        ], style={'width':'60%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
                     ),
+                    html.Div(id='gene-info-markdown', style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'35px'})
                 ],
             ),
         ]
     )
 
-tab_plot_volcano = generate_tab_plot('Volcano Plot', 'volcano-plot', 'gene-info-markdown-volcano', type='2D')
-tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', 'gene-info-markdown-ma', type='2D')
-tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', 'gene-info-markdown-mavolc', type='3D')
+tab_plot_volcano = generate_tab_plot('Volcano Plot', 'volcano-plot', type='2D')
+tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', type='2D')
+tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', type='3D')
 
 app.layout = serve_layout([tab_plot_volcano, tab_plot_ma, tab_plot_mavolc])
 
@@ -696,22 +697,63 @@ def populate_graphs(
 
     return volc_figure, ma_figure, mavolc_figure
 
-# Populate gene information panel from volcano plot click
-def populate_gene_info_panel(output_panel, input_plot):
+def store_plot_timestamp(input_plot_id):
     @app.callback(
-        Output(output_panel, 'children'),
-        [Input(input_plot, 'clickData'), 
+        Output(input_plot_id + '-timediv', 'children'),
+        [Input(input_plot_id, 'clickData'), 
         Input('session-id', 'children')])
     def update_gene_info(click, session_id):
-        if click:
-            df = pd.read_json('temp_data_files/' + session_id)
-            return generate_gene_info(clickData=click, df=df)
-        else:
-            return generate_gene_info('default')
+        if click: 
+            return int(round(time.time() * 1000))
 
-populate_gene_info_panel('gene-info-markdown-volcano', 'volcano-plot')
-populate_gene_info_panel('gene-info-markdown-ma', 'ma-plot')
-populate_gene_info_panel('gene-info-markdown-mavolc', 'mavolc-plot')
+plot_id_list = ['volcano-plot', 'ma-plot', 'mavolc-plot']
+for plot_id in plot_id_list:
+    store_plot_timestamp(plot_id)
+
+@app.callback(
+    Output('gene-info-markdown', 'children'),
+    [Input('session-id', 'children')] +
+        [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
+        [Input(plot_id, 'clickData') for plot_id in plot_id_list]
+        
+)
+def populate_gene_info(
+    session_id,
+    volcano_plot_timediv,
+    ma_plot_timediv,
+    mavolc_plot_timediv,
+    volcano_plot_clickdata,
+    ma_plot_clickdata,
+    mavolc_plot_clickdata
+    ):
+    # Prevent callback from firing if no click has been recorded on any plot
+    if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
+        return generate_gene_info('default')
+    else:
+        def string_to_int(x):
+            if x is None:
+                return int(0)
+            else:
+                return(int(x))
+
+        plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
+                               'ma-plot': string_to_int(ma_plot_timediv),
+                               'mavolc-plot': string_to_int(mavolc_plot_timediv)}
+
+        # Get the last-clicked plot by largest timestamp
+        last_clicked_plot = max(plot_timestamp_dict, key=plot_timestamp_dict.get)
+
+        # Get clickdata from last-clicked plot
+        if last_clicked_plot == 'volcano-plot':
+            clickdata = volcano_plot_clickdata
+        if last_clicked_plot == 'ma-plot':
+            clickdata = ma_plot_clickdata
+        if last_clicked_plot == 'mavolc-plot':
+            clickdata = mavolc_plot_clickdata
+
+        if clickdata:
+            df = pd.read_json('temp_data_files/' + session_id)
+            return generate_gene_info(clickdata=clickdata, df=df)
 
 if __name__ == '__main__':
-    app.run_server()
+    app.run_server(debug=True)
