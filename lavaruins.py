@@ -317,9 +317,6 @@ def serve_layout(tab_plots=[]):
 
     return html.Div(
         children=[
-            # html.Div(id='content'),
-            # dcc.Location(id='location', refresh=False),
-            # html.Div(dt.DataTable(rows=[{}]), style={'display':'none'}),
             # Hidden Div to store session
             html.Div(id='session-id', style={'display':'none'}),
             # Store timestamps of plot clicks help determine last plot clicked
@@ -407,7 +404,19 @@ def serve_layout(tab_plots=[]):
                 ],
             ),
             # Dash rable (bottom part of interface)
-            dt.DataTable(id='data-table', data=[{}])
+            dt.DataTable(
+                id='data-table', 
+                data=[{}],
+                sorting=True,
+                sorting_type="multi",
+                filtering=True,
+                style_table ={
+                    'maxHeight': '300',
+                    'overflowY': 'scroll',
+                    'border': 'thin lightgrey solid'
+                }
+
+            )
         ]
     )
 
