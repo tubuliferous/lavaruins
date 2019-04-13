@@ -12,6 +12,7 @@ import uuid
 import json
 import dash_resumable_upload
 import time
+import dash_table as dt
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -28,6 +29,7 @@ dash_resumable_upload.decorate_server(server, 'uploads')
 
 # Global homolog, synonym, etc. annotation import
 mgi_annos = pd.read_csv('resources/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
+test_df = pd.read_csv("/Users/tubuliferous/Dropbox/Projects/UAB/lavaruins/test_resources/lavaruins_test_data/empty_deseq.csv")
 
 # Algorithmically determine the smallest and largest float values
 #   - For use with giving value to zero-valued p-values 
@@ -282,7 +284,7 @@ def generate_tab_plot(plot_label, plot_id, type):
                     ],
                     value='gl',
                     # Add some space between button and text
-                    inputStyle={"margin-right": "10px"}
+                    inputStyle={'margin-right': '10px'}
                 )
             ], style={'padding':'5px', 'margin':'45px'})
         ]
@@ -315,6 +317,9 @@ def serve_layout(tab_plots=[]):
 
     return html.Div(
         children=[
+            # html.Div(id='content'),
+            # dcc.Location(id='location', refresh=False),
+            # html.Div(dt.DataTable(rows=[{}]), style={'display':'none'}),
             # Hidden Div to store session
             html.Div(id='session-id', style={'display':'none'}),
             # Store timestamps of plot clicks help determine last plot clicked
@@ -325,7 +330,7 @@ def serve_layout(tab_plots=[]):
             html.Img(src='assets/volcano.png', style={'width':'60px', 'display':'inline'}),
             html.H2('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'}),
             html.P(style={'padding-bottom':'18px'}),
-            # App body
+            # Plots and side bars (top part of interface)
             html.Div(
                 children=[
                     html.Div(
@@ -401,6 +406,8 @@ def serve_layout(tab_plots=[]):
                     html.Div(id='gene-info-markdown', style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'35px'})
                 ],
             ),
+            # Dash rable (bottom part of interface)
+            dt.DataTable(id='data-table', data=[{}])
         ]
     )
 
@@ -556,7 +563,9 @@ def populate_gene_dropdown(session_id):
     [
         Output('volcano-plot', 'figure'),
         Output('ma-plot', 'figure'),
-        Output('mavolc-plot', 'figure')
+        Output('mavolc-plot', 'figure'),
+        Output('data-table', 'columns'),
+        Output('data-table', 'data')
     ],
     [
         Input('session-id', 'children'),
@@ -700,7 +709,7 @@ def populate_graphs(
             'data': v_traces,
             'layout':go.Layout(
                 # Allows points to be highlighted when selected using built-in plot features 
-                # Consider using "clickmode='event+select'" for box selection
+                # Consider using 'clickmode='event+select'' for box selection
                 hovermode='closest',
                 title='Significance vs. Effect Size',
                 xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, # !!Figure out how to change size
@@ -741,7 +750,11 @@ def populate_graphs(
             )
         }
 
-    return volc_figure, ma_figure, mavolc_figure
+        #Update dash table with dataframe subset
+        table_columns = [{'name': i, 'id': i} for i in df.columns]
+        table_data = df.to_dict('rows')
+
+    return volc_figure, ma_figure, mavolc_figure, table_columns, table_data
 
 # Generate settings for plots
 def populate_plot_settings():
