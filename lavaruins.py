@@ -607,7 +607,6 @@ def populate_graphs(
             'opacity':0.5
         }
 
-
         v_traces_args_dict = dict(
             x=df['log2FoldChange'],
             y=df['neg_log10_padj'],
@@ -695,7 +694,6 @@ def populate_graphs(
                     name=gene_name
                 )
                 mv_traces.append(go.Scatter3d(mv_traces_append_args_dict))
-
 
         dim2_plot_margins = {'t':100, 'r':30, 'l':75, 'b':100}
         volc_figure = {
