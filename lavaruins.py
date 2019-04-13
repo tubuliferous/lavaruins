@@ -239,7 +239,7 @@ def generate_tab_plot(plot_label, plot_id, type):
     dim3_button_exceptions = [
         'hoverClosest3d',
         'resetCameraLastSave3d',
-        'resetCameraDefault3d',
+        # 'resetCameraDefault3d',
         'tableRotation',
         'orbitRotation',
         'pan3d',
@@ -269,19 +269,37 @@ def generate_tab_plot(plot_label, plot_id, type):
         plot_config={
             'displaylogo': False,
             'modeBarButtonsToRemove': dim3_button_exceptions}
+    
+    if type == 'settings':
+        return_children = [
+            html.Div([
+                html.H5('2D Rendering Settings', style={'text-decoration':'underline'}),
+                dcc.RadioItems(
+                    id='settings-rendering-radio',
+                    options=[
+                        {'label': 'Fast, low-quality rendering (WebGL)', 'value': 'gl'},
+                        {'label': 'Slow, high-quality rendering (SVG)', 'value': 'svg'},
+                    ],
+                    value='gl',
+                    # Add some space between button and text
+                    inputStyle={"margin-right": "10px"}
+                )
+            ], style={'padding':'5px', 'margin':'45px'})
+        ]
+    else: 
+        return_children = [
+            html.Div([
+                dcc.Graph(
+                    id=plot_id,
+                    config=plot_config,
+                    # To make graph adjust dynamically with window size
+                    style={'height':'85vh'})])]
+
     return dcc.Tab(
             label=plot_label,
-            children=[
-                html.Div([
-                    dcc.Graph(
-                        id=plot_id,
-                        config=plot_config,
-                        # To make graph adjust dynamically with window size
-                        style={'height':'80vh'} 
-                    )
-                ]
-            ),       
-        ], style=tab_style, selected_style=tab_selected_style
+            children=return_children, 
+            style=tab_style,
+            selected_style=tab_selected_style
     )
 
 # Set up the basic plot layout
@@ -389,8 +407,9 @@ def serve_layout(tab_plots=[]):
 tab_plot_volcano = generate_tab_plot('Volcano Plot', 'volcano-plot', type='2D')
 tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', type='2D')
 tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', type='3D')
+tab_plot_settings = generate_tab_plot('Plot Settings', 'settings-plot', type='settings')
 
-app.layout = serve_layout([tab_plot_volcano, tab_plot_ma, tab_plot_mavolc])
+app.layout = serve_layout([tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings])
 
 #Disk write callback and set session ID
 @app.callback(
@@ -533,22 +552,34 @@ def populate_gene_dropdown(session_id):
         return dropdown_options
 
 # Generate plots from imported RNAseq file
-@app.callback([
-    Output('volcano-plot', 'figure'),
-    Output('ma-plot', 'figure'),
-    Output('mavolc-plot', 'figure')],
-   [Input('session-id', 'children'),
-    Input('gene-dropdown', 'value'),
-    Input('pvalue-slider', 'value'),
-    Input('foldchange-slider', 'value'),
-    Input('basemean-slider', 'value')])
+@app.callback(
+    [
+        Output('volcano-plot', 'figure'),
+        Output('ma-plot', 'figure'),
+        Output('mavolc-plot', 'figure')
+    ],
+    [
+        Input('session-id', 'children'),
+        Input('gene-dropdown', 'value'),
+        Input('pvalue-slider', 'value'),
+        Input('foldchange-slider', 'value'),
+        Input('basemean-slider', 'value'),
+        Input('settings-rendering-radio', 'value')
+        # Input('volcano-plot', 'clickData'),
+        # Input('ma-plot', 'clickData'),
+        # Input('mavolc-plot', 'clickData')
+    ])
 def populate_graphs(
     session_id, 
     dropdown_value, 
     pvalue_slider_value, 
     foldchange_slider_value, 
-    basemean_slider_value
-):
+    basemean_slider_value,
+    settings_rendering_radio_value
+    # volcano_clickdata,
+    # ma_clickdata,
+    # mavolc_clickdata
+    ):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
@@ -576,23 +607,32 @@ def populate_graphs(
             'opacity':0.5
         }
 
-        v_traces = [go.Scattergl(
+
+        v_traces_args_dict = dict(
             x=df['log2FoldChange'],
             y=df['neg_log10_padj'],
             mode='markers',
             text=df['gene_ID'],
             name='All Genes',
-            marker=marker_settings_2d)]
+            marker=marker_settings_2d)
+        if settings_rendering_radio_value == 'gl':
+            v_traces = [go.Scattergl(**v_traces_args_dict)]
+        elif settings_rendering_radio_value == 'svg':
+            v_traces = [go.Scatter(**v_traces_args_dict)]
 
-        m_traces = [go.Scattergl(
+        m_traces_args_dict = dict(
             x=df['log10basemean'],
             y=df['log2FoldChange'],
             mode='markers',
             text=df['gene_ID'],
             name='All Genes',
-            marker=marker_settings_2d)]
+            marker=marker_settings_2d)
+        if settings_rendering_radio_value == 'gl':
+            m_traces = [go.Scattergl(**m_traces_args_dict)]
+        elif settings_rendering_radio_value == 'svg':
+            m_traces = [go.Scatter(**m_traces_args_dict)]
 
-        mv_traces = [go.Scatter3d(
+        mv_traces_args_dict = dict(
             x=df['log10basemean'],
             y=df['log2FoldChange'],
             z=df['neg_log10_padj'],
@@ -601,53 +641,61 @@ def populate_graphs(
             name='All Genes',
             # Use different marker settings for WebGL because sizes
             # render differently
-            marker={'size':3, 'color':'black', 'opacity':0.5})]
+            marker={'size':3, 'color':'black', 'opacity':0.5})
+        mv_traces = [go.Scatter3d(**mv_traces_args_dict)]
 
         if dropdown_value is not None:
             for gene_name in dropdown_value:
+
                 gene_slice_df = df[df['gene_ID'] == gene_name]
-                v_traces.append(
-                    go.Scattergl(
-                        x=gene_slice_df['log2FoldChange'],
-                        y=gene_slice_df['neg_log10_padj'],
-                        mode='markers',
-                        # mode='markers+text',
-                        # textposition=['bottom center'],
-                        text=gene_slice_df['gene_ID'],
-                        # textfont={'color':'red'},
-                        marker={'size':11, 'line':{'width':2, 'color':'white'}},
-                        name=gene_name
-                    )
-                )
-                m_traces.append(
-                    go.Scattergl(
-                        x=gene_slice_df['log10basemean'],
-                        y=gene_slice_df['log2FoldChange'],
-                        mode='markers',
-                        # mode='markers+text',
-                        # textposition=['bottom center'],
-                        text=gene_slice_df['gene_ID'],
-                        # textfont={'color':'red'},
 
-                        marker={'size':11, 'line':{'width':2, 'color':'white'}},
-                        name=gene_name
-                    )
+                v_traces_append_args_dict = dict(
+                    x=gene_slice_df['log2FoldChange'],
+                    y=gene_slice_df['neg_log10_padj'],
+                    mode='markers',
+                    # mode='markers+text',
+                    textposition=['bottom center'],
+                    text=gene_slice_df['gene_ID'],
+                    # textfont={'color':'red'},
+                    marker={'size':11, 'line':{'width':2, 'color':'white'}},
+                    name=gene_name
                 )
-                mv_traces.append(
-                    go.Scatter3d(
-                        x=gene_slice_df['log10basemean'],
-                        y=gene_slice_df['log2FoldChange'],
-                        z=gene_slice_df['neg_log10_padj'],
-                        mode='markers',
-                        # mode='markers+text',
-                        # textposition=['bottom center'],
-                        text=gene_slice_df['gene_ID'],
-                        # textfont={'color':'red'},
+                if settings_rendering_radio_value == 'gl':
+                    v_traces.append(go.Scattergl(**v_traces_append_args_dict))
+                elif settings_rendering_radio_value == 'svg':
+                    v_traces.append(go.Scatter(**v_traces_append_args_dict))
 
-                        marker={'size':4, 'line':{'width':2, 'color':'white'}},
-                        name=gene_name
-                    )
+                m_traces_append_args_dict = dict(
+                    x=gene_slice_df['log10basemean'],
+                    y=gene_slice_df['log2FoldChange'],
+                    mode='markers',
+                    # mode='markers+text',
+                    # textposition=['bottom center'],
+                    text=gene_slice_df['gene_ID'],
+                    # textfont={'color':'red'},
+                    marker={'size':11, 'line':{'width':2, 'color':'white'}},
+                    name=gene_name
                 )
+                if settings_rendering_radio_value == 'gl':
+                    m_traces.append(go.Scattergl(**m_traces_append_args_dict))
+                elif settings_rendering_radio_value == 'svg':
+                    m_traces.append(go.Scatter(**m_traces_append_args_dict))
+
+                mv_traces_append_args_dict = dict(
+                    x=gene_slice_df['log10basemean'],
+                    y=gene_slice_df['log2FoldChange'],
+                    z=gene_slice_df['neg_log10_padj'],
+                    mode='markers',
+                    # mode='markers+text',
+                    # textposition=['bottom center'],
+                    text=gene_slice_df['gene_ID'],
+                    # textfont={'color':'red'},
+
+                    marker={'size':4, 'line':{'width':2, 'color':'white'}},
+                    name=gene_name
+                )
+                mv_traces.append(go.Scatter3d(mv_traces_append_args_dict))
+
 
         dim2_plot_margins = {'t':100, 'r':30, 'l':75, 'b':100}
         volc_figure = {
@@ -697,6 +745,11 @@ def populate_graphs(
 
     return volc_figure, ma_figure, mavolc_figure
 
+# Generate settings for plots
+def populate_plot_settings():
+    pass
+
+# Keep track of click timestamps from each plot for determining which plot clicked last
 def store_plot_timestamp(input_plot_id):
     @app.callback(
         Output(input_plot_id + '-timediv', 'children'),
@@ -722,9 +775,9 @@ def populate_gene_info(
     volcano_plot_timediv,
     ma_plot_timediv,
     mavolc_plot_timediv,
-    volcano_plot_clickdata,
-    ma_plot_clickdata,
-    mavolc_plot_clickdata
+    volcano_clickdata,
+    ma_clickdata,
+    mavolc_clickdata
     ):
     # Prevent callback from firing if no click has been recorded on any plot
     if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
@@ -745,11 +798,11 @@ def populate_gene_info(
 
         # Get clickdata from last-clicked plot
         if last_clicked_plot == 'volcano-plot':
-            clickdata = volcano_plot_clickdata
+            clickdata = volcano_clickdata
         if last_clicked_plot == 'ma-plot':
-            clickdata = ma_plot_clickdata
+            clickdata = ma_clickdata
         if last_clicked_plot == 'mavolc-plot':
-            clickdata = mavolc_plot_clickdata
+            clickdata = mavolc_clickdata
 
         if clickdata:
             df = pd.read_json('temp_data_files/' + session_id)
@@ -757,3 +810,4 @@ def populate_gene_info(
 
 if __name__ == '__main__':
     app.run_server(debug=True)
+
