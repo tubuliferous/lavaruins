@@ -13,6 +13,9 @@ import json
 import dash_resumable_upload
 import time
 import dash_table as dt
+# import io
+import os
+import flask
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -29,9 +32,7 @@ dash_resumable_upload.decorate_server(server, 'uploads')
 
 # Global homolog, synonym, etc. annotation import
 mgi_annos = pd.read_csv('resources/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
-test_df = pd.read_csv("/Users/tubuliferous/Dropbox/Projects/UAB/lavaruins/test_resources/lavaruins_test_data/empty_deseq.csv")
 
-# Algorithmically determine the smallest and largest float values
 #   - For use with giving value to zero-valued p-values 
 #   - Source: https://stackoverflow.com/questions/1835787/what-is-the-range-of-values-a-float-can-have-in-python
 def find_float_limits():
@@ -304,27 +305,50 @@ def generate_tab_plot(plot_label, plot_id, type):
             selected_style=tab_selected_style
     )
 
-def generate_tab_table(plot_label, table_id):
-        tab_children = [
-            dt.DataTable(
-                id = table_id,
-                data=[{}],
-                sorting=True,
-                sorting_type="multi",
-                filtering=True,
-                style_table ={
-                    'maxHeight':'300',
-                    'overflowY':'scroll',
-                    'border':'thin lightgrey solid',
-                    # 'margin-top':'50px'
-                },
-            )
-        ]
-        return dcc.Tab(
-            label=plot_label,
-            children=tab_children, 
-            # style=tab_style,
-            # selected_style=tab_selected_style
+def generate_tab_table(plot_label, table_id, download_link_id=None):
+    tab_style = {
+        # 'borderBottom':'1px solid #d6d6d6',
+        # 'border':'1px solid #d6d6d6',
+        'padding':'6px',
+        'fontWeight':'bold',
+        # 'width':'150px',
+    }
+    tab_selected_style = {
+        'borderTop':'1px solid #d6d6d6',
+        # 'border':'0 solid #d6d6d6',
+        # 'borderBottom':'1px solid #d6d6d6',
+        'backgroundColor':'#717272',
+        'color':'white',
+        'padding':'6px',
+        # 'width':'150px',
+    }
+
+    tab_children = []
+    tab_children.append(
+        dt.DataTable(
+            id = table_id,
+            data=[{}],
+            sorting=True,
+            sorting_type="multi",
+            # filtering=True,
+            style_table ={
+                'maxHeight':'300',
+                'overflowY':'scroll',
+                # 'border':'.5px lightgrey solid',
+                # 'border-bottom':'1px lightgrey solid'
+                # 'padding':'.5px'
+                # 'margin':'10px'
+            },
+        )    
+    )
+    if download_link_id:
+        tab_children.append(html.A(['Download table as CSV'], id=download_link_id, style={'font-weight':'bold'}))
+
+    return dcc.Tab(
+        label=plot_label,
+        children=tab_children,
+        style=tab_style,
+        selected_style=tab_selected_style
     )
 
 # Set up the basic plot layout
@@ -388,26 +412,48 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                             html.Hr(style={'margin':'0px'}),
 
                             # log₁₀(adjusted p-value) filter sliders and buttons
-                            html.Details([
-                                html.Summary('Filter on Transformed p-value'),
-                                slider_layout(slider_id='pvalue-slider', input_min_id='pvalue-textbox-min', input_max_id='pvalue-textbox-max', submit_button_id = 'pvalue-submit-button', reset_button_id='pvalue-reset-button'),
+                            html.Details(
+                                [
+                                    html.Summary('Filter on Transformed p-value'),
+                                    slider_layout(
+                                        slider_id='pvalue-slider', 
+                                        input_min_id='pvalue-textbox-min', 
+                                        input_max_id='pvalue-textbox-max', 
+                                        submit_button_id='pvalue-submit-button', 
+                                        reset_button_id='pvalue-reset-button'),
                                 ], 
                                 open=True, 
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
 
                             # Log2(foldchange) filter sliders and buttons
-                            html.Details([
-                                html.Summary('Filter on log₂(FoldChange)'),
-                                slider_layout(slider_id='foldchange-slider', input_min_id='foldchange-textbox-min', input_max_id='foldchange-textbox-max', submit_button_id = 'foldchange-submit-button', reset_button_id='foldchange-reset-button'),
-                                ], open=True, style=left_panel_details_style),
+                            html.Details(
+                                [
+                                    html.Summary('Filter on log₂(FoldChange)'),
+                                    slider_layout(
+                                        slider_id='foldchange-slider',
+                                        input_min_id='foldchange-textbox-min',
+                                        input_max_id='foldchange-textbox-max',
+                                        submit_button_id='foldchange-submit-button',
+                                        reset_button_id='foldchange-reset-button'),
+                                ], 
+                                open=True,
+                                style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
 
                             # Log₁₀(basemean) filter sliders and buttons
-                            html.Details([
-                                html.Summary('Filter on log₁₀(BaseMean)'),
-                                slider_layout(slider_id='basemean-slider', input_min_id='basemean-textbox-min', input_max_id='basemean-textbox-max', submit_button_id = 'basemean-submit-button', reset_button_id='basemean-reset-button'),
-                                ], open=True, style=left_panel_details_style),
+                            html.Details(
+                                [
+                                    html.Summary('Filter on log₁₀(BaseMean)'),
+                                    slider_layout(
+                                        slider_id='basemean-slider',
+                                        input_min_id='basemean-textbox-min',
+                                        input_max_id='basemean-textbox-max',
+                                        submit_button_id = 'basemean-submit-button',
+                                        reset_button_id='basemean-reset-button'),
+                                ], 
+                                open=True, 
+                                style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
                         ], 
                         style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
@@ -427,25 +473,12 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                 ],
                 style={'margin-bottom':'10px'}
             ),
-            # DataTable (bottom part of interface)
-
+            # DataTables (bottom part of interface)
             dcc.Tabs(
                 id='table-tabs',
-                children=tab_tables
+                children=tab_tables,
+                style=tabs_styles
             ),
-            # dt.DataTable(
-            #     id='data-table', 
-            #     data=[{}],
-            #     sorting=True,
-            #     sorting_type="multi",
-            #     filtering=True,
-            #     style_table ={
-            #         'maxHeight':'300',
-            #         'overflowY':'scroll',
-            #         'border':'thin lightgrey solid',
-            #         # 'margin-top':'50px'
-            #     },
-            # )
         ]
     )
 
@@ -454,12 +487,13 @@ tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', type='2D')
 tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', type='3D')
 tab_plot_settings = generate_tab_plot('Plot Settings', 'settings-plot', type='settings')
 
-tab_table_visible= generate_tab_table('Visible Genes', 'visible-genes-table')
-tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-genes-table')
+tab_table_all= generate_tab_table('All Genes', 'all-genes-table', 'something')
+tab_table_all= generate_tab_table('All Genes', 'all-genes-table', 'all-genes-download-link')
+tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-genes-table', 'highlighted-genes-download-link')
 
 app.layout = serve_layout(
     [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings], 
-    [tab_table_visible, tab_table_highlighted])
+    [tab_table_all, tab_table_highlighted])
 
 #Disk write callback and set session ID
 @app.callback(
@@ -793,13 +827,15 @@ def populate_graphs(
 
     return volc_figure, ma_figure, mavolc_figure
 
-# Generate settings for plots
+# Populate DataTables based on filters and highlighting
 @app.callback(
     [
-        Output('visible-genes-table', 'columns'),
-        Output('visible-genes-table', 'data'),
+        Output('all-genes-table', 'columns'),
+        Output('all-genes-table', 'data'),
+        Output('all-genes-download-link', 'href'),
         Output('highlighted-genes-table', 'columns'),
         Output('highlighted-genes-table', 'data'),
+        Output('highlighted-genes-download-link', 'href')
     ],
     [
         Input('session-id', 'children'),
@@ -807,45 +843,57 @@ def populate_graphs(
     ]
 )
 def populate_tables(session_id, dropdown_value_gene_list):
-            # dt.DataTable(
-            #     id='data-table', 
-            #     data=[{}],
-            #     sorting=True,
-            #     sorting_type="multi",
-            #     filtering=True,
-            #     style_table ={
-            #         'maxHeight':'300',
-            #         'overflowY':'scroll',
-            #         'border':'thin lightgrey solid',
-            #         # 'margin-top':'50px'
-            #     },
-            # )
-
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
         df = pd.read_json('temp_data_files/' + session_id)
 
-        visible_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
-        visible_genes_table_data = df.to_dict('rows')
+        all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
+        all_genes_table_data = df.to_dict('rows')
+        alls_relative_filename = os.path.join(
+                'downloads',
+                session_id + '_all_df.csv'
+            )
+        alls_absolute_filename = os.path.join(os.getcwd(), alls_relative_filename)
+        df.to_csv(alls_absolute_filename)
+
+        highlights_relative_filename = None
 
         if dropdown_value_gene_list is not None:
-            print(dropdown_value_gene_list)
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
-            print(dropdown_slice_df)
-
             highlighted_genes_table_columns = [{'name': i, 'id': i} for i in dropdown_slice_df.columns]
             highlighted_genes_table_data = dropdown_slice_df.to_dict('rows')
+            highlights_relative_filename = os.path.join(
+                'downloads',
+                session_id + '_highlights_df.csv'
+            )
+            highlights_absolute_filename = os.path.join(os.getcwd(), highlights_relative_filename)
+
+            dropdown_slice_df.to_csv(highlights_absolute_filename)
+            print(highlights_absolute_filename)
+
         else:
-            highlighted_genes_table_columns = None
-            highlighted_genes_table_data = None
+            highlighted_genes_table_columns = [{}]
+            highlighted_genes_table_data = [{}]
 
         return(
-            visible_genes_table_columns, 
-            visible_genes_table_data, 
+            all_genes_table_columns, 
+            all_genes_table_data,
+            '/{}'.format(alls_relative_filename),
             highlighted_genes_table_columns,
-            highlighted_genes_table_data
+            highlighted_genes_table_data,
+            '/{}'.format(highlights_relative_filename)
         )
+
+# For downloading tables: 
+#   - https://github.com/plotly/dash-recipes/blob/master/dash-download-file-link-server.py
+@app.server.route('/downloads/<path:path>')
+def serve_static(path):
+    root_dir = os.getcwd()
+    return flask.send_from_directory(
+        os.path.join(root_dir, 'downloads'), 
+        path,
+        attachment_filename='downloadFile.csv')
 
 # Keep track of click timestamps from each plot for determining which plot clicked last
 def store_plot_timestamp(input_plot_id):
