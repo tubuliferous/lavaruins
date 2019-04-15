@@ -845,10 +845,11 @@ def populate_tables(session_id, dropdown_value_gene_list):
         Input('session-id', 'children'),
         Input('all-genes-download-link', 'n_clicks'),
         Input('highlighted-genes-download-link', 'n_clicks'),
-    ],
-    [
-        State('gene-dropdown', 'value')
+        Input('gene-dropdown', 'value')
     ]
+    # [
+    #     State('gene-dropdown', 'value')
+    # ]
 )
 def download_tables(
     session_id,
@@ -885,6 +886,8 @@ def download_tables(
         return(
             '/{}'.format(all_relative_filename),
             '/{}'.format(highlighted_relative_filename)
+            # all_absolute_filename,
+            # highlighted_absolute_filename
         )
 
 # For downloading tables: 

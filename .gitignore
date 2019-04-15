@@ -12,6 +12,5 @@ uploads/*
 !uploads/.gitkeep
 downloads/*
 !downloads/.gitkeep
-
 test_*
 **/test*
