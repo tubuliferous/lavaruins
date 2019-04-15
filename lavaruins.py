@@ -273,23 +273,23 @@ def generate_tab_plot(plot_label, plot_id, type):
             'modeBarButtonsToRemove': dim3_button_exceptions}
     
     if type == 'settings':
-        return_children = [
+        tab_children = [
             html.Div([
                 html.H5('2D Rendering Settings', style={'text-decoration':'underline'}),
                 dcc.RadioItems(
                     id='settings-rendering-radio',
                     options=[
-                        {'label': 'Fast, low-quality rendering (WebGL)', 'value': 'gl'},
-                        {'label': 'Slow, high-quality rendering (SVG)', 'value': 'svg'},
+                        {'label':'Fast, low-quality rendering (WebGL)', 'value':'gl'},
+                        {'label':'Slow, high-quality rendering (SVG)', 'value':'svg'},
                     ],
                     value='gl',
                     # Add some space between button and text
-                    inputStyle={'margin-right': '10px'}
+                    inputStyle={'margin-right':'10px'}
                 )
             ], style={'padding':'5px', 'margin':'45px'})
         ]
     else: 
-        return_children = [
+        tab_children = [
             html.Div([
                 dcc.Graph(
                     id=plot_id,
@@ -299,13 +299,36 @@ def generate_tab_plot(plot_label, plot_id, type):
 
     return dcc.Tab(
             label=plot_label,
-            children=return_children, 
+            children=tab_children, 
             style=tab_style,
             selected_style=tab_selected_style
     )
 
+def generate_tab_table(plot_label, table_id):
+        tab_children = [
+            dt.DataTable(
+                id = table_id,
+                data=[{}],
+                sorting=True,
+                sorting_type="multi",
+                filtering=True,
+                style_table ={
+                    'maxHeight':'300',
+                    'overflowY':'scroll',
+                    'border':'thin lightgrey solid',
+                    # 'margin-top':'50px'
+                },
+            )
+        ]
+        return dcc.Tab(
+            label=plot_label,
+            children=tab_children, 
+            # style=tab_style,
+            # selected_style=tab_selected_style
+    )
+
 # Set up the basic plot layout
-def serve_layout(tab_plots=[]):
+def serve_layout(tab_plots=[], tab_tables=[]):
 
     left_panel_details_style = {'margin-bottom':'5px','margin-top':'5px'}
 
@@ -402,21 +425,27 @@ def serve_layout(tab_plots=[]):
                     ),
                     html.Div(id='gene-info-markdown', style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'35px'})
                 ],
+                style={'margin-bottom':'10px'}
             ),
-            # Dash rable (bottom part of interface)
-            dt.DataTable(
-                id='data-table', 
-                data=[{}],
-                sorting=True,
-                sorting_type="multi",
-                filtering=True,
-                style_table ={
-                    'maxHeight': '300',
-                    'overflowY': 'scroll',
-                    'border': 'thin lightgrey solid'
-                }
+            # DataTable (bottom part of interface)
 
-            )
+            dcc.Tabs(
+                id='table-tabs',
+                children=tab_tables
+            ),
+            # dt.DataTable(
+            #     id='data-table', 
+            #     data=[{}],
+            #     sorting=True,
+            #     sorting_type="multi",
+            #     filtering=True,
+            #     style_table ={
+            #         'maxHeight':'300',
+            #         'overflowY':'scroll',
+            #         'border':'thin lightgrey solid',
+            #         # 'margin-top':'50px'
+            #     },
+            # )
         ]
     )
 
@@ -425,7 +454,12 @@ tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', type='2D')
 tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', type='3D')
 tab_plot_settings = generate_tab_plot('Plot Settings', 'settings-plot', type='settings')
 
-app.layout = serve_layout([tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings])
+tab_table_visible= generate_tab_table('Visible Genes', 'visible-genes-table')
+tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-genes-table')
+
+app.layout = serve_layout(
+    [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings], 
+    [tab_table_visible, tab_table_highlighted])
 
 #Disk write callback and set session ID
 @app.callback(
@@ -573,8 +607,6 @@ def populate_gene_dropdown(session_id):
         Output('volcano-plot', 'figure'),
         Output('ma-plot', 'figure'),
         Output('mavolc-plot', 'figure'),
-        Output('data-table', 'columns'),
-        Output('data-table', 'data')
     ],
     [
         Input('session-id', 'children'),
@@ -589,7 +621,7 @@ def populate_gene_dropdown(session_id):
     ])
 def populate_graphs(
     session_id, 
-    dropdown_value, 
+    dropdown_value_gene_list, 
     pvalue_slider_value, 
     foldchange_slider_value, 
     basemean_slider_value,
@@ -658,11 +690,11 @@ def populate_graphs(
             name='All Genes',
             # Use different marker settings for WebGL because sizes
             # render differently
-            marker={'size':3, 'color':'black', 'opacity':0.5})
+            marker={'size':4, 'color':'black', 'opacity':0.5})
         mv_traces = [go.Scatter3d(**mv_traces_args_dict)]
 
-        if dropdown_value is not None:
-            for gene_name in dropdown_value:
+        if dropdown_value_gene_list is not None:
+            for gene_name in dropdown_value_gene_list:
 
                 gene_slice_df = df[df['gene_ID'] == gene_name]
 
@@ -708,7 +740,7 @@ def populate_graphs(
                     text=gene_slice_df['gene_ID'],
                     # textfont={'color':'red'},
 
-                    marker={'size':4, 'line':{'width':2, 'color':'white'}},
+                    marker={'size':6, 'line':{'width':2, 'color':'white'}},
                     name=gene_name
                 )
                 mv_traces.append(go.Scatter3d(mv_traces_append_args_dict))
@@ -759,15 +791,61 @@ def populate_graphs(
             )
         }
 
-        #Update dash table with dataframe subset
-        table_columns = [{'name': i, 'id': i} for i in df.columns]
-        table_data = df.to_dict('rows')
-
-    return volc_figure, ma_figure, mavolc_figure, table_columns, table_data
+    return volc_figure, ma_figure, mavolc_figure
 
 # Generate settings for plots
-def populate_plot_settings():
-    pass
+@app.callback(
+    [
+        Output('visible-genes-table', 'columns'),
+        Output('visible-genes-table', 'data'),
+        Output('highlighted-genes-table', 'columns'),
+        Output('highlighted-genes-table', 'data'),
+    ],
+    [
+        Input('session-id', 'children'),
+        Input('gene-dropdown', 'value'),
+    ]
+)
+def populate_tables(session_id, dropdown_value_gene_list):
+            # dt.DataTable(
+            #     id='data-table', 
+            #     data=[{}],
+            #     sorting=True,
+            #     sorting_type="multi",
+            #     filtering=True,
+            #     style_table ={
+            #         'maxHeight':'300',
+            #         'overflowY':'scroll',
+            #         'border':'thin lightgrey solid',
+            #         # 'margin-top':'50px'
+            #     },
+            # )
+
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        df = pd.read_json('temp_data_files/' + session_id)
+
+        visible_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
+        visible_genes_table_data = df.to_dict('rows')
+
+        if dropdown_value_gene_list is not None:
+            print(dropdown_value_gene_list)
+            dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
+            print(dropdown_slice_df)
+
+            highlighted_genes_table_columns = [{'name': i, 'id': i} for i in dropdown_slice_df.columns]
+            highlighted_genes_table_data = dropdown_slice_df.to_dict('rows')
+        else:
+            highlighted_genes_table_columns = None
+            highlighted_genes_table_data = None
+
+        return(
+            visible_genes_table_columns, 
+            visible_genes_table_data, 
+            highlighted_genes_table_columns,
+            highlighted_genes_table_data
+        )
 
 # Keep track of click timestamps from each plot for determining which plot clicked last
 def store_plot_timestamp(input_plot_id):
