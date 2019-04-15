@@ -1,7 +1,6 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-# import dash_renderer
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
 import numpy as np
@@ -13,7 +12,6 @@ import json
 import dash_resumable_upload
 import time
 import dash_table as dt
-# import io
 import os
 import flask
 
@@ -21,7 +19,6 @@ import flask
 pd.set_option('display.max_columns', 500)
 
 # App setup
-# dash_renderer._set_react_version('16.2.0')
 app = dash.Dash(__name__)
 
 # Authentication
@@ -307,20 +304,14 @@ def generate_tab_plot(plot_label, plot_id, type):
 
 def generate_tab_table(plot_label, table_id, download_link_id=None):
     tab_style = {
-        # 'borderBottom':'1px solid #d6d6d6',
-        # 'border':'1px solid #d6d6d6',
         'padding':'6px',
         'fontWeight':'bold',
-        # 'width':'150px',
     }
     tab_selected_style = {
         'borderTop':'1px solid #d6d6d6',
-        # 'border':'0 solid #d6d6d6',
-        # 'borderBottom':'1px solid #d6d6d6',
         'backgroundColor':'#717272',
         'color':'white',
         'padding':'6px',
-        # 'width':'150px',
     }
 
     tab_children = []
@@ -330,14 +321,9 @@ def generate_tab_table(plot_label, table_id, download_link_id=None):
             data=[{}],
             sorting=True,
             sorting_type="multi",
-            # filtering=True,
             style_table ={
                 'maxHeight':'300',
                 'overflowY':'scroll',
-                # 'border':'.5px lightgrey solid',
-                # 'border-bottom':'1px lightgrey solid'
-                # 'padding':'.5px'
-                # 'margin':'10px'
             },
         )    
     )
@@ -487,7 +473,6 @@ tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', type='2D')
 tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', type='3D')
 tab_plot_settings = generate_tab_plot('Plot Settings', 'settings-plot', type='settings')
 
-tab_table_all= generate_tab_table('All Genes', 'all-genes-table', 'something')
 tab_table_all= generate_tab_table('All Genes', 'all-genes-table', 'all-genes-download-link')
 tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-genes-table', 'highlighted-genes-download-link')
 
@@ -495,7 +480,7 @@ app.layout = serve_layout(
     [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings], 
     [tab_table_all, tab_table_highlighted])
 
-#Disk write callback and set session ID
+#Get data from user, set session ID, and set up slider initial values
 @app.callback(
     [
         Output('session-id', 'children'),
@@ -649,9 +634,6 @@ def populate_gene_dropdown(session_id):
         Input('foldchange-slider', 'value'),
         Input('basemean-slider', 'value'),
         Input('settings-rendering-radio', 'value')
-        # Input('volcano-plot', 'clickData'),
-        # Input('ma-plot', 'clickData'),
-        # Input('mavolc-plot', 'clickData')
     ])
 def populate_graphs(
     session_id, 
@@ -660,9 +642,6 @@ def populate_graphs(
     foldchange_slider_value, 
     basemean_slider_value,
     settings_rendering_radio_value
-    # volcano_clickdata,
-    # ma_clickdata,
-    # mavolc_clickdata
     ):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
@@ -736,10 +715,8 @@ def populate_graphs(
                     x=gene_slice_df['log2FoldChange'],
                     y=gene_slice_df['neg_log10_padj'],
                     mode='markers',
-                    # mode='markers+text',
                     textposition=['bottom center'],
                     text=gene_slice_df['gene_ID'],
-                    # textfont={'color':'red'},
                     marker={'size':11, 'line':{'width':2, 'color':'white'}},
                     name=gene_name
                 )
@@ -752,10 +729,7 @@ def populate_graphs(
                     x=gene_slice_df['log10basemean'],
                     y=gene_slice_df['log2FoldChange'],
                     mode='markers',
-                    # mode='markers+text',
-                    # textposition=['bottom center'],
                     text=gene_slice_df['gene_ID'],
-                    # textfont={'color':'red'},
                     marker={'size':11, 'line':{'width':2, 'color':'white'}},
                     name=gene_name
                 )
@@ -769,11 +743,7 @@ def populate_graphs(
                     y=gene_slice_df['log2FoldChange'],
                     z=gene_slice_df['neg_log10_padj'],
                     mode='markers',
-                    # mode='markers+text',
-                    # textposition=['bottom center'],
                     text=gene_slice_df['gene_ID'],
-                    # textfont={'color':'red'},
-
                     marker={'size':6, 'line':{'width':2, 'color':'white'}},
                     name=gene_name
                 )
@@ -787,7 +757,7 @@ def populate_graphs(
                 # Consider using 'clickmode='event+select'' for box selection
                 hovermode='closest',
                 title='Significance vs. Effect Size',
-                xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, # !!Figure out how to change size
+                xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, 
                 yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
                 margin=dim2_plot_margins,
             )
@@ -798,7 +768,7 @@ def populate_graphs(
             'layout':go.Layout(
                 hovermode='closest',
                 title='Log Ratio (M) vs. Mean Average (A)',
-                xaxis={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'}, # !!Figure out how to change size
+                xaxis={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'},
                 yaxis={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'},
                 margin=dim2_plot_margins,
             )
@@ -832,10 +802,8 @@ def populate_graphs(
     [
         Output('all-genes-table', 'columns'),
         Output('all-genes-table', 'data'),
-        Output('all-genes-download-link', 'href'),
         Output('highlighted-genes-table', 'columns'),
         Output('highlighted-genes-table', 'data'),
-        Output('highlighted-genes-download-link', 'href')
     ],
     [
         Input('session-id', 'children'),
@@ -850,27 +818,11 @@ def populate_tables(session_id, dropdown_value_gene_list):
 
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
-        alls_relative_filename = os.path.join(
-                'downloads',
-                session_id + '_all_df.csv'
-            )
-        alls_absolute_filename = os.path.join(os.getcwd(), alls_relative_filename)
-        df.to_csv(alls_absolute_filename)
-
-        highlights_relative_filename = None
 
         if dropdown_value_gene_list is not None:
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
             highlighted_genes_table_columns = [{'name': i, 'id': i} for i in dropdown_slice_df.columns]
             highlighted_genes_table_data = dropdown_slice_df.to_dict('rows')
-            highlights_relative_filename = os.path.join(
-                'downloads',
-                session_id + '_highlights_df.csv'
-            )
-            highlights_absolute_filename = os.path.join(os.getcwd(), highlights_relative_filename)
-
-            dropdown_slice_df.to_csv(highlights_absolute_filename)
-            print(highlights_absolute_filename)
 
         else:
             highlighted_genes_table_columns = [{}]
@@ -879,10 +831,60 @@ def populate_tables(session_id, dropdown_value_gene_list):
         return(
             all_genes_table_columns, 
             all_genes_table_data,
-            '/{}'.format(alls_relative_filename),
             highlighted_genes_table_columns,
             highlighted_genes_table_data,
-            '/{}'.format(highlights_relative_filename)
+        )
+
+# Control downloading of tables by hyperlink
+@app.callback(
+    [
+        Output('all-genes-download-link', 'href'),
+        Output('highlighted-genes-download-link', 'href')
+    ],
+    [   
+        Input('session-id', 'children'),
+        Input('all-genes-download-link', 'n_clicks'),
+        Input('highlighted-genes-download-link', 'n_clicks'),
+    ],
+    [
+        State('gene-dropdown', 'value')
+    ]
+)
+def download_tables(
+    session_id,
+    all_n_clicks,
+    highlight_n_clicks,
+    dropdown_value_gene_list,
+):
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        print(highlight_n_clicks)
+        all_relative_filename = None
+        highlighted_relative_filename = None
+        df = pd.read_json('temp_data_files/' + session_id)
+
+        all_relative_filename = os.path.join(
+                'downloads',
+                session_id + '_all_df.csv'
+            )
+        all_absolute_filename = os.path.join(os.getcwd(), all_relative_filename)
+        df.to_csv(all_absolute_filename)
+
+        highlighted_relative_filename = os.path.join(
+            'downloads',
+            session_id + '_highlighted_df.csv'
+        )
+        highlighted_absolute_filename = os.path.join(os.getcwd(), highlighted_relative_filename)
+        if dropdown_value_gene_list is not None:
+            dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
+            dropdown_slice_df.to_csv(highlighted_absolute_filename)
+        else:
+            pd.DataFrame().to_csv(highlighted_absolute_filename)
+
+        return(
+            '/{}'.format(all_relative_filename),
+            '/{}'.format(highlighted_relative_filename)
         )
 
 # For downloading tables: 
@@ -892,8 +894,7 @@ def serve_static(path):
     root_dir = os.getcwd()
     return flask.send_from_directory(
         os.path.join(root_dir, 'downloads'), 
-        path,
-        attachment_filename='downloadFile.csv')
+        path)
 
 # Keep track of click timestamps from each plot for determining which plot clicked last
 def store_plot_timestamp(input_plot_id):
@@ -913,8 +914,7 @@ for plot_id in plot_id_list:
     Output('gene-info-markdown', 'children'),
     [Input('session-id', 'children')] +
         [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
-        [Input(plot_id, 'clickData') for plot_id in plot_id_list]
-        
+        [Input(plot_id, 'clickData') for plot_id in plot_id_list]        
 )
 def populate_gene_info(
     session_id,
@@ -956,4 +956,3 @@ def populate_gene_info(
 
 if __name__ == '__main__':
     app.run_server(debug=True)
-
