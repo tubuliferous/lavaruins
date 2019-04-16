@@ -878,6 +878,7 @@ def download_tables(
         )
         highlighted_absolute_filename = os.path.join(os.getcwd(), highlighted_relative_filename)
         if dropdown_value_gene_list is not None:
+            print(dropdown_value_gene_list)
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
             dropdown_slice_df.to_csv(highlighted_absolute_filename)
         else:
@@ -886,8 +887,6 @@ def download_tables(
         return(
             '/{}'.format(all_relative_filename),
             '/{}'.format(highlighted_relative_filename)
-            # all_absolute_filename,
-            # highlighted_absolute_filename
         )
 
 # For downloading tables: 
