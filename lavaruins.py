@@ -64,6 +64,20 @@ def find_float_limits():
 
     return last_minimum, last_maximum
 
+# For handling string conversion to int when string can be None
+def string_to_int(x):
+    if x is None:
+        return int(0)
+    else:
+        return(int(x))
+
+# For handling ints that might be None
+def safe_int(x):
+    if x is None:
+        return int(0)
+    else:
+        return int(x)
+
 # Take file input and return dataframe
 def parse_file_contents(filename):
     try:
@@ -473,7 +487,7 @@ tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', type='2D')
 tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', type='3D')
 tab_plot_settings = generate_tab_plot('Plot Settings', 'settings-plot', type='settings')
 
-tab_table_all= generate_tab_table('All Genes', 'all-genes-table', 'all-genes-download-link')
+tab_table_all= generate_tab_table('All Genes', 'all-genes-table')
 tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-genes-table', 'highlighted-genes-download-link')
 
 app.layout = serve_layout(
@@ -733,7 +747,7 @@ def populate_graphs(
                     marker={'size':11, 'line':{'width':2, 'color':'white'}},
                     name=gene_name
                 )
-                if settings_rendering_radio_value == 'gl':
+                if settings_rendering_radio_value == 'gl':                 
                     m_traces.append(go.Scattergl(**m_traces_append_args_dict))
                 elif settings_rendering_radio_value == 'svg':
                     m_traces.append(go.Scatter(**m_traces_append_args_dict))
@@ -797,13 +811,24 @@ def populate_graphs(
 
     return volc_figure, ma_figure, mavolc_figure
 
-# Populate DataTables based on filters and highlighting
+# For downloading tables: 
+#   - https://github.com/plotly/dash-recipes/blob/master/dash-download-file-link-server.py
+@app.server.route('/download/<path:path>')
+def serve_static(path):
+    root_dir = os.getcwd()
+    return flask.send_from_directory(
+        os.path.join(root_dir, 'download'), 
+        path)
+
+# Populate DataTables
 @app.callback(
     [
         Output('all-genes-table', 'columns'),
         Output('all-genes-table', 'data'),
         Output('highlighted-genes-table', 'columns'),
         Output('highlighted-genes-table', 'data'),
+        Output('highlighted-genes-download-link', 'href'),
+        Output('highlighted-genes-download-link', 'download')
     ],
     [
         Input('session-id', 'children'),
@@ -819,84 +844,29 @@ def populate_tables(session_id, dropdown_value_gene_list):
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
 
-        if dropdown_value_gene_list is not None:
+        clicktime = time.strftime('%Y_%m_%d_%Hh%Mm%Ss')
+        highlighted_relative_filename ='download/highlighted_df_' + clicktime + '.csv'
+
+        if dropdown_value_gene_list is None:
+            highlighted_genes_table_columns = [{}]
+            highlighted_genes_table_data = [{}]
+            # For downloads
+            pd.DataFrame().to_csv(highlighted_relative_filename)
+        else:
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
             highlighted_genes_table_columns = [{'name': i, 'id': i} for i in dropdown_slice_df.columns]
             highlighted_genes_table_data = dropdown_slice_df.to_dict('rows')
-
-        else:
-            highlighted_genes_table_columns = [{}]
-            highlighted_genes_table_data = [{}]
-
+            # For downloads
+            dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
+            dropdown_slice_df.to_csv(highlighted_relative_filename)
         return(
             all_genes_table_columns, 
             all_genes_table_data,
             highlighted_genes_table_columns,
             highlighted_genes_table_data,
+            highlighted_relative_filename,
+            highlighted_relative_filename
         )
-
-# Control downloading of tables by hyperlink
-@app.callback(
-    [
-        Output('all-genes-download-link', 'href'),
-        Output('highlighted-genes-download-link', 'href')
-    ],
-    [   
-        Input('session-id', 'children'),
-        Input('all-genes-download-link', 'n_clicks'),
-        Input('highlighted-genes-download-link', 'n_clicks'),
-        Input('gene-dropdown', 'value')
-    ]
-    # [
-    #     State('gene-dropdown', 'value')
-    # ]
-)
-def download_tables(
-    session_id,
-    all_n_clicks,
-    highlight_n_clicks,
-    dropdown_value_gene_list,
-):
-    if session_id is None:
-        raise dash.exceptions.PreventUpdate()
-    else:
-        print(highlight_n_clicks)
-        all_relative_filename = None
-        highlighted_relative_filename = None
-        df = pd.read_json('temp_data_files/' + session_id)
-
-        all_relative_filename = os.path.join(
-                'downloads',
-                session_id + '_all_df.csv'
-            )
-        all_absolute_filename = os.path.join(os.getcwd(), all_relative_filename)
-        df.to_csv(all_absolute_filename)
-
-        highlighted_relative_filename = os.path.join(
-            'downloads',
-            session_id + '_highlighted_df.csv'
-        )
-        highlighted_absolute_filename = os.path.join(os.getcwd(), highlighted_relative_filename)
-        if dropdown_value_gene_list is not None:
-            print(dropdown_value_gene_list)
-            dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
-            dropdown_slice_df.to_csv(highlighted_absolute_filename)
-        else:
-            pd.DataFrame().to_csv(highlighted_absolute_filename)
-
-        return(
-            '/{}'.format(all_relative_filename),
-            '/{}'.format(highlighted_relative_filename)
-        )
-
-# For downloading tables: 
-#   - https://github.com/plotly/dash-recipes/blob/master/dash-download-file-link-server.py
-@app.server.route('/downloads/<path:path>')
-def serve_static(path):
-    root_dir = os.getcwd()
-    return flask.send_from_directory(
-        os.path.join(root_dir, 'downloads'), 
-        path)
 
 # Keep track of click timestamps from each plot for determining which plot clicked last
 def store_plot_timestamp(input_plot_id):
@@ -931,12 +901,7 @@ def populate_gene_info(
     if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
         return generate_gene_info('default')
     else:
-        def string_to_int(x):
-            if x is None:
-                return int(0)
-            else:
-                return(int(x))
-
+        
         plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
                                'ma-plot': string_to_int(ma_plot_timediv),
                                'mavolc-plot': string_to_int(mavolc_plot_timediv)}

@@ -10,7 +10,7 @@ temp_data_files/*
 !temp_data_files/.gitkeep
 uploads/*
 !uploads/.gitkeep
-downloads/*
-!downloads/.gitkeep
+download/*
+!download/.gitkeep
 test_*
 **/test*
