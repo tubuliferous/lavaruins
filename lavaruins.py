@@ -330,13 +330,16 @@ def generate_tab_table(plot_label, table_id, download_link_id=None):
 
     tab_children = []
     tab_children.append(
+        # DataTable features: https://dash.plot.ly/datatable/interactivity
         dt.DataTable(
             id = table_id,
             data=[{}],
             sorting=True,
             sorting_type="multi",
+            n_fixed_rows=1,
+            # row_selectable='single',
             style_table ={
-                'maxHeight':'300',
+                'maxHeight':'500',
                 'overflowY':'scroll',
             },
         )    
