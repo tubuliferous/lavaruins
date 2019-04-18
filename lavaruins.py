@@ -382,23 +382,50 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                 children=[
                     html.Div(
                         children=[
-                            html.Details([
-                                html.Summary('File Upload'),
-                                dash_resumable_upload.Upload(
-                                    id='upload-data',
-                                    maxFiles=1,
-                                    maxFileSize=1024*1024*1000,  # 100 MB
-                                    service='/upload_resumable',
-                                    textLabel='Drag and Drop or Click Here to Upload',
-                                    startButton=False,
-                                    cancelButton=False,
-                                    pauseButton=False,
-                                    chunkSize=500_000,
-                                    defaultStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
-                                    activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
-                                    completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'}
-
-                                )],
+                            html.Details(
+                                [
+                                    html.Summary('File Upload'),
+                                    dash_resumable_upload.Upload(
+                                        id='upload-data',
+                                        maxFiles=1,
+                                        maxFileSize=1024*1024*1000,  # 100 MB
+                                        service='/upload_resumable',
+                                        textLabel='Drag and Drop or Click Here to Upload',
+                                        startButton=False,
+                                        cancelButton=False,
+                                        pauseButton=False,
+                                        chunkSize=500_000,
+                                        defaultStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
+                                        activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
+                                        completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'})
+                                ],
+                                    # !! <testing>
+                                    # html.Div(
+                                    #     children=[
+                                    #        dcc.Upload(
+                                    #             id='upload-data',
+                                    #             children=html.Div([
+                                    #                 'Drag and Drop or ',
+                                    #                 html.A('Select File'),
+                                    #             ]),
+                                    #             style={
+                                    #                 'width': '80%',
+                                    #                 'height': '10vh',
+                                    #                 'lineHeight': '17px',
+                                    #                 'borderWidth': '1.5px',
+                                    #                 'borderStyle': 'dashed',
+                                    #                 'borderRadius': '5px',
+                                    #                 'textAlign': 'center',
+                                    #                 'padding-top': '10px',
+                                    #                 'margin': '0px',
+                                    #             },
+                                    #             # Don't allow multiple files to be uploaded
+                                    #             multiple=False,
+                                    #         )
+                                    #     ]
+                                    # )
+                                    # ],
+                                    # !! </testing>
                                 open=True,
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
@@ -512,6 +539,9 @@ app.layout = serve_layout(
         Output('basemean-slider', 'marks'),
     ],
     [
+        # !! <testing> 
+        # Input('upload-data', 'filename'),
+        # !! </testing>
         Input('upload-data', 'fileNames'),
     ],
 )
@@ -525,8 +555,31 @@ def handle_df(filenames):
         # Only look at the last uploaded file
         filename = filenames[-1]
         df = parse_file_contents(filename)
+        # !! <testing>
+        # df = parse_file_contents(filenames)
+        # !! </testing>
+
         # Handle alternative gene name column
-        df = df.rename(index=str, columns={'symbol':'gene_ID'})
+        df.rename(index=str, columns={'symbol':'gene_ID'}, inplace=True)
+
+        # Reorder column names to prefered order
+        standard_colnames = [
+            'gene_ID',
+            'log2FoldChange',
+            'baseMean',
+            'pvalue',
+            'padj',
+            'lfcSE',
+            'stat',
+            'weight',
+            'Row.names'
+        ]
+
+        other_colnames = list(set(df.columns.tolist()) - set(standard_colnames))
+
+        reorderd_colnames = standard_colnames + other_colnames
+
+        df = df[reorderd_colnames]
 
         global_vars = {
             'pvalue_reset_click_count':None,
@@ -926,3 +979,4 @@ def populate_gene_info(
 
 if __name__ == '__main__':
     app.run_server(debug=True)
+
