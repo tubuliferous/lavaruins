@@ -910,7 +910,7 @@ def populate_tables(session_id, dropdown_value_gene_list):
         all_genes_table_data = df.to_dict('rows')
 
         clicktime = time.strftime('%Y_%m_%d_%Hh%Mm%Ss')
-        highlighted_relative_filename ='download/highlighted_df_' + clicktime + '.csv'
+        highlighted_relative_filename = '_'.join(['download/highlighted_df', session_id, clicktime]) + '.csv'
 
         if dropdown_value_gene_list is None:
             highlighted_genes_table_columns = [{}]
