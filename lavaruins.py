@@ -179,7 +179,7 @@ def generate_gene_info(clickdata, df=None):
         omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
 
         mouse_details = html.Details([
-                html.Summary(mouse_header, style={'position': 'relative', 'left':'-20px'}),
+                html.Summary(mouse_header, style={'position': 'relative'}),
                 html.Div([
                     mouse_md, 
                     mgi_html_id, 
@@ -188,7 +188,7 @@ def generate_gene_info(clickdata, df=None):
             ], open=True)
 
         human_details = html.Details([
-                html.Summary(human_header, style={'position':'relative', 'left':'-20px'}),
+                html.Summary(human_header, style={'position':'relative'}),
                 html.Div([
                    human_md, 
                    hgnc_html_id, 
@@ -584,7 +584,8 @@ def handle_df(filenames):
         global_vars = {
             'pvalue_reset_click_count':None,
             'foldchange_reset_click_count':None,
-            'basemean_reset_click_count':None
+            'basemean_reset_click_count':None,
+            'gene_dropdown_value': []
         }
         with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
             json.dump(global_vars, json_write)
@@ -777,6 +778,14 @@ def populate_graphs(
         mv_traces = [go.Scatter3d(**mv_traces_args_dict)]
 
         if dropdown_value_gene_list is not None:
+
+            # Store gene list in global variable for use in other callbacks
+            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
+                global_vars = json.load(json_read)
+            global_vars['gene_dropdown_value'] = dropdown_value_gene_list
+            with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
+                json.dump(global_vars, json_write)
+
             for gene_name in dropdown_value_gene_list:
 
                 gene_slice_df = df[df['gene_ID'] == gene_name]
@@ -939,12 +948,13 @@ for plot_id in plot_id_list:
     store_plot_timestamp(plot_id)
 
 @app.callback(
-    Output('gene-info-markdown', 'children'),
+    [Output('gene-dropdown', 'value'),
+     Output('gene-info-markdown', 'children')],
     [Input('session-id', 'children')] +
         [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
         [Input(plot_id, 'clickData') for plot_id in plot_id_list]        
 )
-def populate_gene_info(
+def gene_click_actions(
     session_id,
     volcano_plot_timediv,
     ma_plot_timediv,
@@ -955,7 +965,7 @@ def populate_gene_info(
     ):
     # Prevent callback from firing if no click has been recorded on any plot
     if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
-        return generate_gene_info('default')
+        return [], generate_gene_info('default')
     else:
         
         plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
@@ -975,7 +985,20 @@ def populate_gene_info(
 
         if clickdata:
             df = pd.read_json('temp_data_files/' + session_id)
-            return generate_gene_info(clickdata=clickdata, df=df)
+
+            # For highlighting clicked genes
+            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
+                global_vars = json.load(json_read)
+            clicked_gene = clickdata['points'][0]['text']
+            if clicked_gene not in global_vars['gene_dropdown_value']:
+                updated_gene_dropdown_value = global_vars['gene_dropdown_value'] + [clicked_gene]
+            else:
+                updated_gene_dropdown_value = global_vars['gene_dropdown_value']
+
+            # Generate Gene Info panel
+            markdown = generate_gene_info(clickdata=clickdata, df=df)
+
+            return(updated_gene_dropdown_value, markdown)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
