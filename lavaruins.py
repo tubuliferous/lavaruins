@@ -20,6 +20,7 @@ pd.set_option('display.max_columns', 500)
 
 # App setup
 app = dash.Dash(__name__)
+app.scripts.config.serve_locally = True
 
 # Authentication
 USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
@@ -30,7 +31,7 @@ dash_resumable_upload.decorate_server(server, 'uploads')
 # Global homolog, synonym, etc. annotation import
 mgi_annos = pd.read_csv('resources/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
 
-#   - For use with giving value to zero-valued p-values 
+#   - For use with giving value to zero-valued p-values
 #   - Source: https://stackoverflow.com/questions/1835787/what-is-the-range-of-values-a-float-can-have-in-python
 def find_float_limits():
     '''Return a tuple of min, max positive numbers
@@ -87,27 +88,27 @@ def parse_file_contents(filename):
             # Assume that the user uploaded an excel file
         elif '.xls' in filename:
             df = pd.read_excel('uploads/' + filename)
-            # Assume that the user uploaded a TSV file 
+            # Assume that the user uploaded a TSV file
         elif '.tsv' in filename:
             df = pd.read_csv('uploads/' + filename, sep='\t')
         return df
     except Exception as e:
         print(e)
 
-# Setup gene information panel 
+# Setup gene information panel
 def generate_gene_info(clickdata, df=None):
     if clickdata == 'default':
         default_text = html.P(children = html.H5('Click on plotted gene for information'), style={'textAlign':'left'})
         return default_text
     else:
         gene_name = clickdata['points'][0]['text']
-        
+
         neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
         log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
         log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
 
         gene_annos = mgi_annos[(mgi_annos['Symbol']==gene_name) & (mgi_annos['Common Organism Name']=='mouse, laboratory')]
- 
+
         try:
             mgi_id = gene_annos['Mouse MGI ID'].values[0]
             mgi_link = 'http://www.informatics.jax.org/accession/' + str(mgi_id)
@@ -115,13 +116,13 @@ def generate_gene_info(clickdata, df=None):
         except:
             mgi_id = 'NA'
             mgi_link = 'NA'
-            location = 'NA'            
+            location = 'NA'
         try:
             function_name = gene_annos['Name'].values[0]
         except:
             function_name = 'NA'
         try:
-            synonyms = (', ').join(gene_annos['Synonyms'].values[0].split('|'))            
+            synonyms = (', ').join(gene_annos['Synonyms'].values[0].split('|'))
         except:
             synonyms = 'NA'
         try:
@@ -129,9 +130,9 @@ def generate_gene_info(clickdata, df=None):
             human_homolog = mgi_annos[(mgi_annos['HomoloGene ID']==homologene_id) & (mgi_annos['Common Organism Name']=='human')]
             human_homolog_name = human_homolog['Symbol'].values[0]
         except:
-            human_homolog_name = 'NA'            
+            human_homolog_name = 'NA'
         try:
-            hgnc_id = human_homolog['HGNC ID'].values[0]            
+            hgnc_id = human_homolog['HGNC ID'].values[0]
         except:
             hgnc_id = 'NA'
         try:
@@ -148,19 +149,19 @@ def generate_gene_info(clickdata, df=None):
             human_location = human_homolog['Genetic Location'].values[0]
         except:
             human_location = 'NA'
-        try:    
+        try:
             omim_id = human_homolog['OMIM Gene ID'].values[0]
             omim_number = omim_id.split(':')[1]
             omim_link = 'https://omim.org/entry/' + omim_number
         except:
-            omim_id = 'NA' 
+            omim_id = 'NA'
             omim_link = 'NA'
 
         mouse_header = html.Span('Mouse Gene', style={'font-size':'120%', 'text-decoration':'underline'})
         mouse_md = dcc.Markdown(dedent('''''' +
             '\n\n**Gene Name**: *{}*'.format(gene_name) +
             '\n\n**Synonyms:** *{}*'.format(synonyms) +
-            '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) + 
+            '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) +
             '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
             '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
             '\n\n**Location:** {}'.format(location) +
@@ -181,8 +182,8 @@ def generate_gene_info(clickdata, df=None):
         mouse_details = html.Details([
                 html.Summary(mouse_header, style={'position': 'relative'}),
                 html.Div([
-                    mouse_md, 
-                    mgi_html_id, 
+                    mouse_md,
+                    mgi_html_id,
                     mgi_html_link
                 ])
             ], open=True)
@@ -190,8 +191,8 @@ def generate_gene_info(clickdata, df=None):
         human_details = html.Details([
                 html.Summary(human_header, style={'position':'relative'}),
                 html.Div([
-                   human_md, 
-                   hgnc_html_id, 
+                   human_md,
+                   hgnc_html_id,
                    hgnc_html_link,
                    html.P('\n'),
                    omim_html_id,
@@ -206,9 +207,9 @@ def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset
         html.Div([
             # !!Consider using style 'display':table-cell' for better fromatting of components below
             dcc.RangeSlider(id=slider_id, step=0.01)], style={'margin-bottom':'25px'}),
-            html.Div(['Min:', dcc.Input(id=input_min_id, style={'width':'40px'}),], 
-                style={'width':'50px', 'display':'inline-block'}), 
-            html.Div(['Max:', dcc.Input(id=input_max_id, style={'width':'40px'}),], 
+            html.Div(['Min:', dcc.Input(id=input_min_id, style={'width':'40px'}),],
+                style={'width':'50px', 'display':'inline-block'}),
+            html.Div(['Max:', dcc.Input(id=input_max_id, style={'width':'40px'}),],
                 style={'width':'50px','display':'inline-block'}),
             html.Button(id=submit_button_id, children='Submit', style={'width':'55px', 'display':'inline-block', 'padding':'0px', 'margin':'0px', 'height':'30px', 'lineHeight':'0px', 'margin-left':'5px'}),
             html.Button(id=reset_button_id, children='Reset',  style={'width':'52px', 'display':'inline-block', 'padding':'0px', 'margin':'0px', 'height':'30px', 'lineHeight':'0px', 'margin-left':'5px'})
@@ -217,7 +218,7 @@ def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset
 
 # Generate marks sequences for sliders
 def get_spaced_marks(min_mark, max_mark):
-    seq = np.linspace(min_mark, max_mark, 4).tolist() 
+    seq = np.linspace(min_mark, max_mark, 4).tolist()
     if max_mark not in seq:
         # remove old maximum value if too close to the high end of the slider
         if (max_mark - max(seq)) < (0.5*(seq[2] - seq[1])):
@@ -229,21 +230,21 @@ def get_spaced_marks(min_mark, max_mark):
             seq.pop(0)
         seq.insert(int(0), min_mark)
     # Fix for 0 label not shown on slider mark
-    marks={int(i) if i % 1 == 0 else i:'{:.0f}'.format(i) for i in seq} 
+    marks={int(i) if i % 1 == 0 else i:'{:.0f}'.format(i) for i in seq}
     return marks
 
 # Generate plot-containing tab
 def generate_tab_plot(plot_label, plot_id, type):
-    # Mode Bar button descriptions: 
+    # Mode Bar button descriptions:
     #   https://github.com/plotly/plotly.github.io/blob/master/_posts/fundamentals/2015-09-01-getting-to-know-the-plotly-modebar.md
     dim2_button_exceptions = [
-        'pan2d', 
+        'pan2d',
         'zoomIn2d',
-        'zoomOut2d', 
-        'autoScale2d', 
-        'resetScale2d', 
-        'hoverCompareCartesian', 
-        'hoverClosestCartesian', 
+        'zoomOut2d',
+        'autoScale2d',
+        'resetScale2d',
+        'hoverCompareCartesian',
+        'hoverClosestCartesian',
         'toggleSpikelines',
         'select2d',
         'lasso2d',
@@ -283,7 +284,7 @@ def generate_tab_plot(plot_label, plot_id, type):
         plot_config={
             'displaylogo': False,
             'modeBarButtonsToRemove': dim3_button_exceptions}
-    
+
     if type == 'settings':
         tab_children = [
             html.Div([
@@ -300,7 +301,7 @@ def generate_tab_plot(plot_label, plot_id, type):
                 )
             ], style={'padding':'5px', 'margin':'45px'})
         ]
-    else: 
+    else:
         tab_children = [
             html.Div([
                 dcc.Graph(
@@ -311,7 +312,7 @@ def generate_tab_plot(plot_label, plot_id, type):
 
     return dcc.Tab(
             label=plot_label,
-            children=tab_children, 
+            children=tab_children,
             style=tab_style,
             selected_style=tab_selected_style
     )
@@ -342,7 +343,7 @@ def generate_tab_table(plot_label, table_id, download_link_id=None):
                 'maxHeight':'500',
                 'overflowY':'scroll',
             },
-        )    
+        )
     )
     if download_link_id:
         tab_children.append(html.A(['Download table as CSV'], id=download_link_id, style={'font-weight':'bold'}))
@@ -446,13 +447,13 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                 [
                                     html.Summary('Filter on Transformed p-value'),
                                     slider_layout(
-                                        slider_id='pvalue-slider', 
-                                        input_min_id='pvalue-textbox-min', 
-                                        input_max_id='pvalue-textbox-max', 
-                                        submit_button_id='pvalue-submit-button', 
+                                        slider_id='pvalue-slider',
+                                        input_min_id='pvalue-textbox-min',
+                                        input_max_id='pvalue-textbox-max',
+                                        submit_button_id='pvalue-submit-button',
                                         reset_button_id='pvalue-reset-button'),
-                                ], 
-                                open=True, 
+                                ],
+                                open=True,
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
 
@@ -466,7 +467,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                         input_max_id='foldchange-textbox-max',
                                         submit_button_id='foldchange-submit-button',
                                         reset_button_id='foldchange-reset-button'),
-                                ], 
+                                ],
                                 open=True,
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
@@ -481,11 +482,11 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                         input_max_id='basemean-textbox-max',
                                         submit_button_id = 'basemean-submit-button',
                                         reset_button_id='basemean-reset-button'),
-                                ], 
-                                open=True, 
+                                ],
+                                open=True,
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
-                        ], 
+                        ],
                         style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
                     ),
 
@@ -494,9 +495,9 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                         children=[
                             dcc.Tabs(
                                 id='plot-tabs',
-                                children=tab_plots, 
+                                children=tab_plots,
                                 style=tabs_styles,
-                            ), 
+                            ),
                         ], style={'width':'60%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
                     ),
                     html.Div(id='gene-info-markdown', style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'35px'})
@@ -521,7 +522,7 @@ tab_table_all= generate_tab_table('All Genes', 'all-genes-table')
 tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-genes-table', 'highlighted-genes-download-link')
 
 app.layout = serve_layout(
-    [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings], 
+    [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings],
     [tab_table_all, tab_table_highlighted])
 
 #Get data from user, set session ID, and set up slider initial values
@@ -539,15 +540,15 @@ app.layout = serve_layout(
         Output('basemean-slider', 'marks'),
     ],
     [
-        # !! <testing> 
+        # !! <testing>
         # Input('upload-data', 'filename'),
         # !! </testing>
         Input('upload-data', 'fileNames'),
     ],
 )
 def handle_df(filenames):
-    # Need to put session ID here (I suspect) so that there is a 
-    # change that will trigger the other callbacks 
+    # Need to put session ID here (I suspect) so that there is a
+    # change that will trigger the other callbacks
     if filenames is None:
          raise dash.exceptions.PreventUpdate()
     else:
@@ -600,7 +601,7 @@ def handle_df(filenames):
         # !!Hack: Remove values with baseMean of 0
         df = df[df['baseMean']!=0]
 
-        # Add log transformed columns 
+        # Add log transformed columns
         df['neg_log10_padj'] = -np.log10(df['padj'])
         df['log10basemean'] = np.log10(df['baseMean'])
 
@@ -608,13 +609,13 @@ def handle_df(filenames):
         df.to_json('temp_data_files/' + session_id)
 
         min_transform_padj = 0
-        max_transform_padj = df['neg_log10_padj'].max()    
+        max_transform_padj = df['neg_log10_padj'].max()
         min_transform_foldchange = df['log2FoldChange'].min()
         max_transform_foldchange = df['log2FoldChange'].max()
         min_transform_basemean = df['log10basemean'].min()
         max_transform_basemean = df['log10basemean'].max()
 
-        return(session_id, 
+        return(session_id,
                 min_transform_padj,
                 max_transform_padj,
                 get_spaced_marks(min_transform_padj, max_transform_padj),
@@ -646,7 +647,7 @@ def slider_setup(measurement_name):
     def set_slider_values(
         session_id,
 
-        submit_clicks, 
+        submit_clicks,
         reset_button,
         slider_min,
         slider_max,
@@ -657,7 +658,7 @@ def slider_setup(measurement_name):
         if session_id is None:
             raise dash.exceptions.PreventUpdate()
         else:
-            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
+            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:
                 global_vars = json.load(json_read)
 
             set_min_transform = slider_min
@@ -671,8 +672,8 @@ def slider_setup(measurement_name):
                 set_max_transform = slider_max
                 global_vars[measurement_name + '_reset_click_count'] = reset_button
                 with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-                    json.dump(global_vars, json_write) 
-             
+                    json.dump(global_vars, json_write)
+
             return  [set_min_transform, set_max_transform]
 
 slider_setup('pvalue')
@@ -707,10 +708,10 @@ def populate_gene_dropdown(session_id):
         Input('settings-rendering-radio', 'value')
     ])
 def populate_graphs(
-    session_id, 
-    dropdown_value_gene_list, 
-    pvalue_slider_value, 
-    foldchange_slider_value, 
+    session_id,
+    dropdown_value_gene_list,
+    pvalue_slider_value,
+    foldchange_slider_value,
     basemean_slider_value,
     settings_rendering_radio_value
     ):
@@ -780,7 +781,7 @@ def populate_graphs(
         if dropdown_value_gene_list is not None:
 
             # Store gene list in global variable for use in other callbacks
-            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
+            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:
                 global_vars = json.load(json_read)
             global_vars['gene_dropdown_value'] = dropdown_value_gene_list
             with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
@@ -812,7 +813,7 @@ def populate_graphs(
                     marker={'size':11, 'line':{'width':2, 'color':'white'}},
                     name=gene_name
                 )
-                if settings_rendering_radio_value == 'gl':                 
+                if settings_rendering_radio_value == 'gl':
                     m_traces.append(go.Scattergl(**m_traces_append_args_dict))
                 elif settings_rendering_radio_value == 'svg':
                     m_traces.append(go.Scatter(**m_traces_append_args_dict))
@@ -832,11 +833,11 @@ def populate_graphs(
         volc_figure = {
             'data': v_traces,
             'layout':go.Layout(
-                # Allows points to be highlighted when selected using built-in plot features 
+                # Allows points to be highlighted when selected using built-in plot features
                 # Consider using 'clickmode='event+select'' for box selection
                 hovermode='closest',
                 title='Significance vs. Effect Size',
-                xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, 
+                xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'},
                 yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
                 margin=dim2_plot_margins,
             )
@@ -876,13 +877,13 @@ def populate_graphs(
 
     return volc_figure, ma_figure, mavolc_figure
 
-# For downloading tables: 
+# For downloading tables:
 #   - https://github.com/plotly/dash-recipes/blob/master/dash-download-file-link-server.py
 @app.server.route('/download/<path:path>')
 def serve_static(path):
     root_dir = os.getcwd()
     return flask.send_from_directory(
-        os.path.join(root_dir, 'download'), 
+        os.path.join(root_dir, 'download'),
         path)
 
 # Populate DataTables
@@ -925,7 +926,7 @@ def populate_tables(session_id, dropdown_value_gene_list):
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
             dropdown_slice_df.to_csv(highlighted_relative_filename)
         return(
-            all_genes_table_columns, 
+            all_genes_table_columns,
             all_genes_table_data,
             highlighted_genes_table_columns,
             highlighted_genes_table_data,
@@ -937,10 +938,10 @@ def populate_tables(session_id, dropdown_value_gene_list):
 def store_plot_timestamp(input_plot_id):
     @app.callback(
         Output(input_plot_id + '-timediv', 'children'),
-        [Input(input_plot_id, 'clickData'), 
+        [Input(input_plot_id, 'clickData'),
         Input('session-id', 'children')])
     def update_gene_info(click, session_id):
-        if click: 
+        if click:
             return int(round(time.time() * 1000))
 
 plot_id_list = ['volcano-plot', 'ma-plot', 'mavolc-plot']
@@ -952,7 +953,7 @@ for plot_id in plot_id_list:
      Output('gene-info-markdown', 'children')],
     [Input('session-id', 'children')] +
         [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
-        [Input(plot_id, 'clickData') for plot_id in plot_id_list]        
+        [Input(plot_id, 'clickData') for plot_id in plot_id_list]
 )
 def gene_click_actions(
     session_id,
@@ -967,7 +968,7 @@ def gene_click_actions(
     if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
         return [], generate_gene_info('default')
     else:
-        
+
         plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
                                'ma-plot': string_to_int(ma_plot_timediv),
                                'mavolc-plot': string_to_int(mavolc_plot_timediv)}
@@ -987,7 +988,7 @@ def gene_click_actions(
             df = pd.read_json('temp_data_files/' + session_id)
 
             # For highlighting clicked genes
-            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:  
+            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:
                 global_vars = json.load(json_read)
             clicked_gene = clickdata['points'][0]['text']
             if clicked_gene not in global_vars['gene_dropdown_value']:
@@ -1002,4 +1003,3 @@ def gene_click_actions(
 
 if __name__ == '__main__':
     app.run_server(debug=True)
-
