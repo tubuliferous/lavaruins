@@ -1,4 +1,4 @@
-<img style="float: left" src="images/README_logo2.svg" width="90"> 
+<!-- <img style="float: left" src="images/README_logo2.svg" width="90">  -->
 # LavaRuins - Interactive differential gene expression explorer
 
 LavaRuins is a friendly interactive data visualizer for exploring mouse gene differential expression. LavaRuins is heavily inspired by [DEIVA](https://github.com/Hypercubed/DEIVA) and is built on the Plotly [Dash](https://plot.ly/products/dash/) framework.
