@@ -378,7 +378,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             # html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align': 'bottom'}),
             html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'}),
             html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'}),
-            # html.P(style={'padding-bottom':'2px'}),
+            # html.P(style={'padding-bottom':'5px'}),
             # Plots and side bars (top part of interface)
             html.Div(
                 children=[
