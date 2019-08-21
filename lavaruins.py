@@ -577,9 +577,13 @@ def handle_df(filenames):
             'Row.names'
         ]
 
-        other_colnames = list(set(df.columns.tolist()) - set(standard_colnames))
+        # Exclude column names that aren't in the file
+        # !!Need to catch error if critical colnames not found
+        present_colnames = df.columns.tolist()
+        standard_colnames_found = list(set(present_colnames).intersection(standard_colnames))
+        other_colnames = list(set(standard_colnames_found) - set(standard_colnames))
 
-        reorderd_colnames = standard_colnames + other_colnames
+        reorderd_colnames = standard_colnames_found + other_colnames
 
         df = df[reorderd_colnames]
 
