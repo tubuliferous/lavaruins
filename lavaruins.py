@@ -13,6 +13,7 @@ import dash_resumable_upload
 import time
 import dash_table as dt
 import os
+import shutil
 import flask
 
 # Display all columns when printing dataframes to console
@@ -335,9 +336,10 @@ def generate_tab_table(plot_label, table_id, download_link_id=None):
         dt.DataTable(
             id = table_id,
             data=[{}],
-            sorting=True,
-            sorting_type="multi",
-            n_fixed_rows=1,
+            sort_action="native",
+            sort_mode='multi',
+            filter_action='native',
+            # n_fixed_rows=1,
             # row_selectable='single',
             style_table ={
                 'maxHeight':'500',
@@ -541,9 +543,6 @@ app.layout = serve_layout(
         Output('basemean-slider', 'marks'),
     ],
     [
-        # !! <testing>
-        # Input('upload-data', 'filename'),
-        # !! </testing>
         Input('upload-data', 'fileNames'),
     ],
 )
@@ -552,6 +551,10 @@ def handle_df(filenames):
     # change that will trigger the other callbacks
     if filenames is None:
          raise dash.exceptions.PreventUpdate()
+
+    # elif filenames:
+    #     print(filenames)
+
     else:
         session_id = str(uuid.uuid4())
         # Only look at the last uploaded file
@@ -1007,4 +1010,5 @@ def gene_click_actions(
             return(updated_gene_dropdown_value, markdown)
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    # app.run_server()
+    app.run_server(debug=True, dev_tools_ui=False)
