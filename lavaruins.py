@@ -13,7 +13,6 @@ import dash_resumable_upload
 import time
 import dash_table as dt
 import os
-import shutil
 import flask
 
 # Display all columns when printing dataframes to console
@@ -341,6 +340,7 @@ def generate_tab_table(plot_label, table_id, download_link_id=None):
             filter_action='native',
             # n_fixed_rows=1,
             # row_selectable='single',
+            fixed_rows={ 'headers': True, 'data': 0 },
             style_table ={
                 'maxHeight':'500',
                 'overflowY':'scroll',
