@@ -359,8 +359,12 @@ def generate_tab_table(plot_label, table_id, download_link_id=None):
         dt.DataTable(
             id = table_id,
             data=[{}],
-            sort_mode="multi",
+            sort_action="native",
+            sort_mode='multi',
+            filter_action='native',
+            # n_fixed_rows=1,
             # row_selectable='single',
+            fixed_rows={ 'headers': True, 'data': 0 },
             style_table ={
                 'maxHeight':'500',
                 'overflowY':'scroll',
@@ -387,8 +391,6 @@ def serve_layout(tab_plots=[], tab_tables=[]):
         'display':'inline-block',
         'white-space':'nowrap',
     }
-
-
 
     return html.Div(
         children=[
@@ -548,8 +550,6 @@ tab_plot_settings = generate_tab_plot('Plot Settings', 'settings-plot', type='se
 tab_table_all= generate_tab_table('All Genes', 'all-genes-table')
 tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-genes-table', 'highlighted-genes-download-link')
 
-collapsible_tree = generate_collapsible_tree()
-
 app.layout = serve_layout(
     [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings],
     [tab_table_all, tab_table_highlighted])
@@ -569,9 +569,6 @@ app.layout = serve_layout(
         Output('basemean-slider', 'marks'),
     ],
     [
-        # !! <testing>
-        # Input('upload-data', 'filename'),
-        # !! </testing>
         Input('upload-data', 'fileNames'),
     ],
 )
@@ -580,6 +577,10 @@ def handle_df(filenames):
     # change that will trigger the other callbacks
     if filenames is None:
          raise dash.exceptions.PreventUpdate()
+
+    # elif filenames:
+    #     print(filenames)
+
     else:
         session_id = str(uuid.uuid4())
         # Only look at the last uploaded file
@@ -1031,9 +1032,9 @@ def gene_click_actions(
 
             # Generate Gene Info panel
             markdown = generate_gene_info(clickdata=clickdata, df=df)
-            collapsible_tree = generate_collapsible_tree()
 
             return(updated_gene_dropdown_value, markdown)
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    # app.run_server()
+    app.run_server(debug=True, dev_tools_ui=False)
