@@ -14,6 +14,7 @@ import time
 import dash_table as dt
 import os
 import flask
+import dash_collapsible_tree
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -335,9 +336,7 @@ def generate_tab_table(plot_label, table_id, download_link_id=None):
         dt.DataTable(
             id = table_id,
             data=[{}],
-            sorting=True,
-            sorting_type="multi",
-            n_fixed_rows=1,
+            sort_mode="multi",
             # row_selectable='single',
             style_table ={
                 'maxHeight':'500',
@@ -366,6 +365,24 @@ def serve_layout(tab_plots=[], tab_tables=[]):
         'white-space':'nowrap',
     }
 
+    #!-- Dash Collapsible Tree Example! --!
+    dash_collapsible_tree_test_data = {
+       'label': 'search me',
+       'value': 'searchme',
+       'children': [
+         {
+           'label': 'search me too',
+           'value': 'searchmetoo',
+           'children': [
+             {
+               'label': 'No one can get me',
+               'value': 'anonymous',
+             },
+           ],
+         },
+       ],
+     }
+
     return html.Div(
         children=[
             # Hidden Div to store session
@@ -380,6 +397,9 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'}),
             # html.P(style={'padding-bottom':'5px'}),
             # Plots and side bars (top part of interface)
+            html.Div([
+                dash_collapsible_tree.DashCollapsibleTree(id='dash-collapsible-tree', data=dash_collapsible_tree_test_data)
+            ]),
             html.Div(
                 children=[
                     html.Div(
