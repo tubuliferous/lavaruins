@@ -203,6 +203,29 @@ def generate_gene_info(clickdata, df=None):
 
         return [mouse_details, human_details]
 
+# Probably want to rename this
+def generate_collapsible_tree():
+    dash_collapsible_tree_test_data = {
+       'label': 'search me',
+       'value': 'searchme',
+       'children': [
+         {
+           'label': 'search me too',
+           'value': 'searchmetoo',
+           'children': [
+             {
+               'label': 'No one can get me',
+               'value': 'anonymous',
+             },
+           ],
+         },
+       ],
+     }
+
+    return html.Div([
+        dash_collapsible_tree.DashCollapsibleTree(id='dash-collapsible-tree', data=dash_collapsible_tree_test_data)
+    ])
+
 def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
     return html.Div([
         html.Div([
@@ -365,23 +388,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
         'white-space':'nowrap',
     }
 
-    #!-- Dash Collapsible Tree Example! --!
-    dash_collapsible_tree_test_data = {
-       'label': 'search me',
-       'value': 'searchme',
-       'children': [
-         {
-           'label': 'search me too',
-           'value': 'searchmetoo',
-           'children': [
-             {
-               'label': 'No one can get me',
-               'value': 'anonymous',
-             },
-           ],
-         },
-       ],
-     }
+
 
     return html.Div(
         children=[
@@ -397,9 +404,6 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'}),
             # html.P(style={'padding-bottom':'5px'}),
             # Plots and side bars (top part of interface)
-            html.Div([
-                dash_collapsible_tree.DashCollapsibleTree(id='dash-collapsible-tree', data=dash_collapsible_tree_test_data)
-            ]),
             html.Div(
                 children=[
                     html.Div(
@@ -462,6 +466,8 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                 style=left_panel_details_style,
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
+
+                            generate_collapsible_tree(),
 
                             # log₁₀(adjusted p-value) filter sliders and buttons
                             html.Details(
@@ -541,6 +547,8 @@ tab_plot_settings = generate_tab_plot('Plot Settings', 'settings-plot', type='se
 
 tab_table_all= generate_tab_table('All Genes', 'all-genes-table')
 tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-genes-table', 'highlighted-genes-download-link')
+
+collapsible_tree = generate_collapsible_tree()
 
 app.layout = serve_layout(
     [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings],
@@ -1023,6 +1031,7 @@ def gene_click_actions(
 
             # Generate Gene Info panel
             markdown = generate_gene_info(clickdata=clickdata, df=df)
+            collapsible_tree = generate_collapsible_tree()
 
             return(updated_gene_dropdown_value, markdown)
 
