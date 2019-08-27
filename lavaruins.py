@@ -14,6 +14,7 @@ import time
 import dash_table as dt
 import os
 import flask
+import dash_collapsible_tree
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -201,6 +202,29 @@ def generate_gene_info(clickdata, df=None):
             ], open=True)
 
         return [mouse_details, human_details]
+
+# Probably want to rename this
+def generate_collapsible_tree():
+    dash_collapsible_tree_test_data = {
+       'label': 'search me',
+       'value': 'searchme',
+       'children': [
+         {
+           'label': 'search me too',
+           'value': 'searchmetoo',
+           'children': [
+             {
+               'label': 'No one can get me',
+               'value': 'anonymous',
+             },
+           ],
+         },
+       ],
+     }
+
+    return html.Div([
+        dash_collapsible_tree.DashCollapsibleTree(id='dash-collapsible-tree', data=dash_collapsible_tree_test_data)
+    ])
 
 def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
     return html.Div([
@@ -444,6 +468,8 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                 style=left_panel_details_style,
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
+
+                            generate_collapsible_tree(),
 
                             # log₁₀(adjusted p-value) filter sliders and buttons
                             html.Details(
