@@ -61,3 +61,4 @@ git+https://github.com/westonkjones/dash-resumable-upload.git
 cookiecutter==1.6.0
 react==4.3.0
 dash-collapsible-tree==0.0.5
+dash-extendable-graph==1.0.3

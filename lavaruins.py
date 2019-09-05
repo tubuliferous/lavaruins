@@ -94,7 +94,7 @@ def parse_file_contents(filename):
             df = pd.read_csv('uploads/' + filename, sep='\t')
         return df
     except Exception as e:
-        print(e)
+        print(e)    
 
 # Setup gene information panel
 def generate_gene_info(clickdata, df=None):
