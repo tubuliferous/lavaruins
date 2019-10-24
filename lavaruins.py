@@ -404,10 +404,11 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             html.Div(id='ma-plot-timediv', style={'display':'none'}),
             html.Div(id='mavolc-plot-timediv', style={'display':'none'}),
             # App title header
-            # html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align': 'bottom'}),
-            html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'}),
-            html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'}),
-            # html.P(style={'padding-bottom':'5px'}),
+            html.A(children=[
+                html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),
+                html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline', 'text-decoration':'none'})
+            ], href='https://github.com/tubuliferous/lavaruins', style={'text-decoration':'none', 'color':'black'}),
+            
             # Plots and side bars (top part of interface)
             html.Div(
                 children=[
@@ -430,33 +431,6 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                         activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
                                         completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'})
                                 ],
-                                    # !! <testing>
-                                    # html.Div(
-                                    #     children=[
-                                    #        dcc.Upload(
-                                    #             id='upload-data',
-                                    #             children=html.Div([
-                                    #                 'Drag and Drop or ',
-                                    #                 html.A('Select File'),
-                                    #             ]),
-                                    #             style={
-                                    #                 'width': '80%',
-                                    #                 'height': '10vh',
-                                    #                 'lineHeight': '17px',
-                                    #                 'borderWidth': '1.5px',
-                                    #                 'borderStyle': 'dashed',
-                                    #                 'borderRadius': '5px',
-                                    #                 'textAlign': 'center',
-                                    #                 'padding-top': '10px',
-                                    #                 'margin': '0px',
-                                    #             },
-                                    #             # Don't allow multiple files to be uploaded
-                                    #             multiple=False,
-                                    #         )
-                                    #     ]
-                                    # )
-                                    # ],
-                                    # !! </testing>
                                 open=True,
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
@@ -485,7 +459,6 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                             #     style=left_panel_details_style,
                             #     open=True),
                             # html.Hr(style={'margin':'0px'}),
-
 
 
                             # log₁₀(adjusted p-value) filter sliders and buttons
@@ -605,9 +578,6 @@ def handle_df(filenames):
         # Only look at the last uploaded file
         filename = filenames[-1]
         df = parse_file_contents(filename)
-        # !! <testing>
-        # df = parse_file_contents(filenames)
-        # !! </testing>
 
         # Handle alternative gene name column
         df.rename(index=str, columns={'symbol':'gene_ID'}, inplace=True)
@@ -766,12 +736,6 @@ def populate_gene_dropdown(session_id):
         Input('basemean-slider', 'value'),
         Input('settings-rendering-radio', 'value')
     ],
-    # Capture relayoutData from all plots to lock zoom 
-    # [ 
-    #     State('volcano-plot', 'relayoutData'),
-    #     State('ma-plot', 'relayoutData'),
-        # State('mavolc-plot', 'relayoutData')
-    # ]
 
     )
 def populate_graphs(
@@ -781,9 +745,6 @@ def populate_graphs(
     foldchange_slider_value,
     basemean_slider_value,
     settings_rendering_radio_value,
-    # volcano_plot_relayout_data,
-    # ma_plot_relayout_data,
-    # mavolc_plot_relayout_data
     ):
     print('-> Triggered "populate_graphs"')
     start_time = timeit.default_timer()
@@ -957,35 +918,6 @@ def populate_graphs(
                 uirevision=True
             )
         }
-
-        # Lock zoom level when updating graphs
-        # def lock_zoom_2d(graph, relayout_data):
-        #     if relayout_data is not None:
-        #         if 'xaxis.range[0]' in relayout_data:
-        #             graph['layout']['xaxis']['range'] = [
-        #                 relayout_data['xaxis.range[0]'],
-        #                 volcano_plot_relayout_data['xaxis.range[1]']
-        #             ]
-        #         if 'yaxis.range[0]' in relayout_data:
-        #             graph['layout']['yaxis']['range'] = [
-        #                 relayout_data['yaxis.range[0]'],
-        #                 relayout_data['yaxis.range[1]']
-        #             ]
-
-        # Workaround for uirevision zoom lock not working on first
-        #   gene selection in 3D plot 
-        # def lock_zoom_3d(graph, relayout_data):
-        #     if relayout_data is not None:
-        #         if 'scene.camera' in relayout_data:
-        #             graph['layout']['scene']['camera'] = relayout_data['scene.camera']
-
-        # print('volcano_plot_relayout_data\n', volcano_plot_relayout_data, '\n')
-        # print('ma_plot_relayout_data\n', ma_plot_relayout_data, '\n')
-        # print('mavolc_plot_relayout_data\n', mavolc_plot_relayout_data, '\n')
-
-        # lock_zoom_2d(volc_figure, volcano_plot_relayout_data)
-        # lock_zoom_2d(ma_figure, ma_plot_relayout_data)
-        # lock_zoom_3d(mavolc_figure, mavolc_plot_relayout_data)
 
     print('\tpopulate_graphs elapsed time:', timeit.default_timer() - start_time)
 
