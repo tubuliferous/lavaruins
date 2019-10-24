@@ -770,7 +770,7 @@ def populate_gene_dropdown(session_id):
     # [ 
     #     State('volcano-plot', 'relayoutData'),
     #     State('ma-plot', 'relayoutData'),
-    #     State('mavolc-plot', 'relayoutData')
+        # State('mavolc-plot', 'relayoutData')
     # ]
 
     )
@@ -971,6 +971,9 @@ def populate_graphs(
         #                 relayout_data['yaxis.range[0]'],
         #                 relayout_data['yaxis.range[1]']
         #             ]
+
+        # Workaround for uirevision zoom lock not working on first
+        #   gene selection in 3D plot 
         # def lock_zoom_3d(graph, relayout_data):
         #     if relayout_data is not None:
         #         if 'scene.camera' in relayout_data:
