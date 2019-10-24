@@ -406,7 +406,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             # App title header
             html.A(children=[
                 html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),
-                html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline', 'text-decoration':'none'})
+                html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'})
             ], href='https://github.com/tubuliferous/lavaruins', style={'text-decoration':'none', 'color':'black'}),
             
             # Plots and side bars (top part of interface)
