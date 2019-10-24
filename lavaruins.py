@@ -32,7 +32,7 @@ server = app.server
 dash_resumable_upload.decorate_server(server, 'uploads')
 
 # Global homolog, synonym, etc. annotation import
-mgi_annos = pd.read_csv('resources/homologs_expanded_synonyms.tsv.gz', sep='\t', compression='gzip')
+homolog_annos = pd.read_csv('resources/homologs_expanded_synonyms_mouse.tsv.gz', sep='\t', compression='gzip')
 
 #   - For use with giving value to zero-valued p-values
 #   - Source: https://stackoverflow.com/questions/1835787/what-is-the-range-of-values-a-float-can-have-in-python
@@ -110,7 +110,7 @@ def generate_gene_info(clickdata, df=None):
         log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
         log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
 
-        gene_annos = mgi_annos[(mgi_annos['Symbol']==gene_name) & (mgi_annos['Common Organism Name']=='mouse, laboratory')]
+        gene_annos = homolog_annos[(homolog_annos['Symbol']==gene_name) & (homolog_annos['Common Organism Name']=='mouse, laboratory')]
 
         try:
             mgi_id = gene_annos['Mouse MGI ID'].values[0]
@@ -130,7 +130,7 @@ def generate_gene_info(clickdata, df=None):
             synonyms = 'NA'
         try:
             homologene_id = gene_annos['HomoloGene ID'].values[0]
-            human_homolog = mgi_annos[(mgi_annos['HomoloGene ID']==homologene_id) & (mgi_annos['Common Organism Name']=='human')]
+            human_homolog = homolog_annos[(homolog_annos['HomoloGene ID']==homologene_id) & (homolog_annos['Common Organism Name']=='human')]
             human_homolog_name = human_homolog['Symbol'].values[0]
         except:
             human_homolog_name = 'NA'
@@ -406,8 +406,10 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             # App title header
             html.A(children=[
                 html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),
-                html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline'})
-            ], href='https://github.com/tubuliferous/lavaruins', style={'text-decoration':'none', 'color':'black'}),
+                html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline', }),], 
+                    href='https://github.com/tubuliferous/lavaruins', 
+                    target='_blank',
+                    style={'text-decoration':'none', 'color':'black'},),
             
             # Plots and side bars (top part of interface)
             html.Div(
