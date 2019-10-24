@@ -15,6 +15,8 @@ import dash_table as dt
 import os
 import flask
 import dash_collapsible_tree
+# import dash_extendable_graph as deg
+import timeit
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -329,6 +331,7 @@ def generate_tab_plot(plot_label, plot_id, type):
         tab_children = [
             html.Div([
                 dcc.Graph(
+                # deg.ExtendableGraph(
                     id=plot_id,
                     config=plot_config,
                     # To make graph adjust dynamically with window size
@@ -469,7 +472,21 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                 open=True),
                             html.Hr(style={'margin':'0px'}),
 
-                            generate_collapsible_tree(),
+                            # !! Implement GO Filtering!
+                            # html.Details([
+                            #     html.Summary('Filter on GO Terms'),
+                            #     html.Div([
+                            #         generate_collapsible_tree(),
+                            #         # dcc.Dropdown(
+                            #         # id='gene-dropdown',
+                            #         # multi=True,),
+                            #         ]
+                            #         )],
+                            #     style=left_panel_details_style,
+                            #     open=True),
+                            # html.Hr(style={'margin':'0px'}),
+
+
 
                             # log₁₀(adjusted p-value) filter sliders and buttons
                             html.Details(
@@ -573,6 +590,8 @@ app.layout = serve_layout(
     ],
 )
 def handle_df(filenames):
+    print('-> Triggered "handle_df"')
+    start_time = timeit.default_timer()
     # Need to put session ID here (I suspect) so that there is a
     # change that will trigger the other callbacks
     if filenames is None:
@@ -649,6 +668,8 @@ def handle_df(filenames):
         min_transform_basemean = df['log10basemean'].min()
         max_transform_basemean = df['log10basemean'].max()
 
+        print('\thandle_df elapsed time:', timeit.default_timer() - start_time)
+
         return(session_id,
                 min_transform_padj,
                 max_transform_padj,
@@ -719,11 +740,15 @@ slider_setup('basemean')
     Output('gene-dropdown', 'options'),
     [Input('session-id', 'children')])
 def populate_gene_dropdown(session_id):
+    start_time = timeit.default_timer()
+    print('-> Triggered "populate_gene_dropdown"')
     if session_id is None:
+        print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
         raise dash.exceptions.PreventUpdate()
     else:
         df = pd.read_json('temp_data_files/' + session_id)
         dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
+        print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
         return dropdown_options
 
 # Generate plots from imported RNAseq file
@@ -740,15 +765,29 @@ def populate_gene_dropdown(session_id):
         Input('foldchange-slider', 'value'),
         Input('basemean-slider', 'value'),
         Input('settings-rendering-radio', 'value')
-    ])
+    ],
+    # Capture relayoutData from all plots to lock zoom 
+    # [ 
+    #     State('volcano-plot', 'relayoutData'),
+    #     State('ma-plot', 'relayoutData'),
+    #     State('mavolc-plot', 'relayoutData')
+    # ]
+
+    )
 def populate_graphs(
     session_id,
     dropdown_value_gene_list,
     pvalue_slider_value,
     foldchange_slider_value,
     basemean_slider_value,
-    settings_rendering_radio_value
+    settings_rendering_radio_value,
+    # volcano_plot_relayout_data,
+    # ma_plot_relayout_data,
+    # mavolc_plot_relayout_data
     ):
+    print('-> Triggered "populate_graphs"')
+    start_time = timeit.default_timer()
+
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
@@ -864,6 +903,7 @@ def populate_graphs(
                 mv_traces.append(go.Scatter3d(mv_traces_append_args_dict))
 
         dim2_plot_margins = {'t':100, 'r':30, 'l':75, 'b':100}
+
         volc_figure = {
             'data': v_traces,
             'layout':go.Layout(
@@ -874,6 +914,9 @@ def populate_graphs(
                 xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'},
                 yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
                 margin=dim2_plot_margins,
+                # Keeps zoom level constant
+                # Ref: https://community.plot.ly/t/preserving-ui-state-like-zoom-in-dcc-graph-with-uirevision/15793
+                uirevision=True
             )
         }
 
@@ -885,6 +928,9 @@ def populate_graphs(
                 xaxis={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'},
                 yaxis={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'},
                 margin=dim2_plot_margins,
+                # Keeps zoom level constant
+                # Ref: https://community.plot.ly/t/preserving-ui-state-like-zoom-in-dcc-graph-with-uirevision/15793
+                uirevision=True
             )
         }
 
@@ -906,9 +952,41 @@ def populate_graphs(
                         x=1, y=1, z=1
                     ),
                 ),
+                # Keeps zoom level constant
+                # Ref: https://community.plot.ly/t/preserving-ui-state-like-zoom-in-dcc-graph-with-uirevision/15793
+                uirevision=True
             )
         }
 
+        # Lock zoom level when updating graphs
+        # def lock_zoom_2d(graph, relayout_data):
+        #     if relayout_data is not None:
+        #         if 'xaxis.range[0]' in relayout_data:
+        #             graph['layout']['xaxis']['range'] = [
+        #                 relayout_data['xaxis.range[0]'],
+        #                 volcano_plot_relayout_data['xaxis.range[1]']
+        #             ]
+        #         if 'yaxis.range[0]' in relayout_data:
+        #             graph['layout']['yaxis']['range'] = [
+        #                 relayout_data['yaxis.range[0]'],
+        #                 relayout_data['yaxis.range[1]']
+        #             ]
+        # def lock_zoom_3d(graph, relayout_data):
+        #     if relayout_data is not None:
+        #         if 'scene.camera' in relayout_data:
+        #             graph['layout']['scene']['camera'] = relayout_data['scene.camera']
+
+        # print('volcano_plot_relayout_data\n', volcano_plot_relayout_data, '\n')
+        # print('ma_plot_relayout_data\n', ma_plot_relayout_data, '\n')
+        # print('mavolc_plot_relayout_data\n', mavolc_plot_relayout_data, '\n')
+
+        # lock_zoom_2d(volc_figure, volcano_plot_relayout_data)
+        # lock_zoom_2d(ma_figure, ma_plot_relayout_data)
+        # lock_zoom_3d(mavolc_figure, mavolc_plot_relayout_data)
+
+    print('\tpopulate_graphs elapsed time:', timeit.default_timer() - start_time)
+
+    # return volc_figure, ma_figure, mavolc_figure
     return volc_figure, ma_figure, mavolc_figure
 
 # For downloading tables:
@@ -936,6 +1014,9 @@ def serve_static(path):
     ]
 )
 def populate_tables(session_id, dropdown_value_gene_list):
+    print('-> Triggered "populate_tables"')
+    start_time = timeit.default_timer()
+
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
@@ -959,6 +1040,7 @@ def populate_tables(session_id, dropdown_value_gene_list):
             # For downloads
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
             dropdown_slice_df.to_csv(highlighted_relative_filename)
+        print('\tpopulate_tables elapsed times:', timeit.default_timer() - start_time)
         return(
             all_genes_table_columns,
             all_genes_table_data,
@@ -986,8 +1068,8 @@ for plot_id in plot_id_list:
     [Output('gene-dropdown', 'value'),
      Output('gene-info-markdown', 'children')],
     [Input('session-id', 'children')] +
-        [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
-        [Input(plot_id, 'clickData') for plot_id in plot_id_list]
+    [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
+    [Input(plot_id, 'clickData') for plot_id in plot_id_list]
 )
 def gene_click_actions(
     session_id,
@@ -998,6 +1080,10 @@ def gene_click_actions(
     ma_clickdata,
     mavolc_clickdata
     ):
+
+    print('-> Triggered "gene_click_actions"')
+    start_time = timeit.default_timer()
+
     # Prevent callback from firing if no click has been recorded on any plot
     if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
         return [], generate_gene_info('default')
@@ -1033,8 +1119,10 @@ def gene_click_actions(
             # Generate Gene Info panel
             markdown = generate_gene_info(clickdata=clickdata, df=df)
 
+            print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
+            
             return(updated_gene_dropdown_value, markdown)
 
 if __name__ == '__main__':
     # app.run_server()
-    app.run_server(debug=True, dev_tools_ui=False)
+    app.run_server(debug=True, dev_tools_ui=True)
