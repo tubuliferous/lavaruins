@@ -405,11 +405,11 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             html.Div(id='mavolc-plot-timediv', style={'display':'none'}),
             # App title header
             html.A(children=[
-                html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),
-                html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline', }),], 
+                html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),], 
                     href='https://github.com/tubuliferous/lavaruins', 
-                    target='_blank',
-                    style={'text-decoration':'none', 'color':'black'},),
+                    target='_blank',),
+                    # style={'text-decoration':'none', 'color':'black'},),
+            html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline', }),
             
             # Plots and side bars (top part of interface)
             html.Div(
@@ -653,6 +653,12 @@ def handle_df(filenames):
                 max_transform_basemean,
                 get_spaced_marks(min_transform_basemean, max_transform_basemean),
         )
+
+def determine_organism():
+    pass
+
+def set_organism():
+    pass
 
 # Relies on <measurement>-<component> naming consistency in layout
 def slider_setup(measurement_name):
