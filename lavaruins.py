@@ -32,7 +32,8 @@ server = app.server
 dash_resumable_upload.decorate_server(server, 'uploads')
 
 # Global homolog, synonym, etc. annotation import
-homolog_annos = pd.read_csv('resources/homologs_expanded_synonyms_mouse.tsv.gz', sep='\t', compression='gzip')
+homolog_annos_mouse = pd.read_csv('resources/homologs_expanded_synonyms_mouse.tsv.gz', sep='\t', compression='gzip')
+homolog_annos_human = pd.read_csv('resources/homologs_expanded_synonyms_human.tsv.gz', sep='\t', compression='gzip')
 
 #   - For use with giving value to zero-valued p-values
 #   - Source: https://stackoverflow.com/questions/1835787/what-is-the-range-of-values-a-float-can-have-in-python
@@ -99,7 +100,8 @@ def parse_file_contents(filename):
         print(e)    
 
 # Setup gene information panel
-def generate_gene_info(clickdata, df=None):
+def generate_gene_info(clickdata, df=None, organism_type=None):
+
     if clickdata == 'default':
         default_text = html.P(children = html.H5('Click on plotted gene for information'), style={'textAlign':'left'})
         return default_text
@@ -110,88 +112,177 @@ def generate_gene_info(clickdata, df=None):
         log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
         log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
 
-        gene_annos = homolog_annos[(homolog_annos['Symbol']==gene_name) & (homolog_annos['Common Organism Name']=='mouse, laboratory')]
+        #!! Use this as the basis for switching organisms for homolog lookups
+        if organism_type == 'mouse':
+            homolog_annos = homolog_annos_mouse
+            organism_string = 'mouse, laboratory'
 
-        try:
-            mgi_id = gene_annos['Mouse MGI ID'].values[0]
-            mgi_link = 'http://www.informatics.jax.org/accession/' + str(mgi_id)
-            location = gene_annos['Genetic Location'].values[0].replace(' cM', '')
-        except:
-            mgi_id = 'NA'
-            mgi_link = 'NA'
-            location = 'NA'
-        try:
-            function_name = gene_annos['Name'].values[0]
-        except:
-            function_name = 'NA'
-        try:
-            synonyms = (', ').join(gene_annos['Synonyms'].values[0].split('|'))
-        except:
-            synonyms = 'NA'
-        try:
-            homologene_id = gene_annos['HomoloGene ID'].values[0]
-            human_homolog = homolog_annos[(homolog_annos['HomoloGene ID']==homologene_id) & (homolog_annos['Common Organism Name']=='human')]
-            human_homolog_name = human_homolog['Symbol'].values[0]
-        except:
-            human_homolog_name = 'NA'
-        try:
-            hgnc_id = human_homolog['HGNC ID'].values[0]
-        except:
-            hgnc_id = 'NA'
-        try:
-            hgnc_number = hgnc_id.split(':')[1]
-            hgnc_link = 'https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/' + hgnc_number
-        except:
-            hgnc_link ='NA'
-        try:
-            human_synonyms = (', ').join(human_homolog['Synonyms'].values[0].split('|'))
-        except:
-            human_synonyms = 'NA'
-        # Human homologs almost always have similar functional names, so leave out for now
-        try:
-            human_location = human_homolog['Genetic Location'].values[0]
-        except:
-            human_location = 'NA'
-        try:
-            omim_id = human_homolog['OMIM Gene ID'].values[0]
-            omim_number = omim_id.split(':')[1]
-            omim_link = 'https://omim.org/entry/' + omim_number
-        except:
-            omim_id = 'NA'
-            omim_link = 'NA'
+            gene_annos = homolog_annos[(homolog_annos['Symbol']==gene_name) & (homolog_annos['Common Organism Name']==organism_string)]
 
-        mouse_header = html.Span('Mouse Gene', style={'font-size':'120%', 'text-decoration':'underline'})
-        mouse_md = dcc.Markdown(dedent('''''' +
-            '\n\n**Gene Name**: *{}*'.format(gene_name) +
-            '\n\n**Synonyms:** *{}*'.format(synonyms) +
-            '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) +
-            '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
-            '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
-            '\n\n**Location:** {}'.format(location) +
-            '\n\n**Functional Name:** {}'.format(function_name)))
-        mgi_html_id = html.B('MGI ID: ')
-        mgi_html_link = html.A(mgi_id, href=mgi_link, target='_blank')
-        human_header = html.Span('Human Homolog', style={'font-size':'120%', 'text-decoration':'underline'})
-        human_md = dcc.Markdown(dedent('''''' +
-            '\n\n**Human Homolog Name**: *{}*'.format(human_homolog_name) +
-            '\n\n**Human Synonyms:** *{}*'.format(human_synonyms) +
+            try:
+                mgi_id = gene_annos['Mouse MGI ID'].values[0]
+                mgi_link = 'http://www.informatics.jax.org/accession/' + str(mgi_id)
+                location = gene_annos['Genetic Location'].values[0].replace(' cM', '')
+            except:
+                mgi_id = 'NA'
+                mgi_link = 'NA'
+                location = 'NA'
+
+            try:
+                function_name = gene_annos['Name'].values[0]
+            except:
+                function_name = 'NA'
+
+            try:
+                synonyms = (', ').join(gene_annos['Synonyms'].values[0].split('|'))
+            except:
+                synonyms = 'NA'
+
+            try:
+                homologene_id = gene_annos['HomoloGene ID'].values[0]
+                human_homolog = homolog_annos[(homolog_annos['HomoloGene ID']==homologene_id) & (homolog_annos['Common Organism Name']=='human')]
+                human_homolog_name = human_homolog['Symbol'].values[0]
+            except:
+                human_homolog_name = 'NA'
+
+            try:
+                hgnc_id = human_homolog['HGNC ID'].values[0]
+            except:
+                hgnc_id = 'NA'
+
+            try:
+                hgnc_number = hgnc_id.split(':')[1]
+                hgnc_link = 'https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/' + hgnc_number
+            except:
+                hgnc_link ='NA'
+
+            try:
+                human_synonyms = (', ').join(human_homolog['Synonyms'].values[0].split('|'))
+            except:
+                human_synonyms = 'NA'
+
             # Human homologs almost always have similar functional names, so leave out for now
-            '\n\n**Homolog Location:** {}'.format(human_location)))
-        hgnc_html_id = html.B('HGNC ID: ')
-        hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
-        omim_html_id = html.B('OMIM ID: ')
-        omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
+            try:
+                human_location = human_homolog['Genetic Location'].values[0]
+            except:
+                human_location = 'NA'
 
-        mouse_details = html.Details([
-                html.Summary(mouse_header, style={'position': 'relative'}),
-                html.Div([
-                    mouse_md,
-                    mgi_html_id,
-                    mgi_html_link
-                ])
-            ], open=True)
+            try:
+                omim_id = human_homolog['OMIM Gene ID'].values[0]
+                omim_number = omim_id.split(':')[1]
+                omim_link = 'https://omim.org/entry/' + omim_number
+            except:
+                omim_id = 'NA'
+                omim_link = 'NA'
 
-        human_details = html.Details([
+            mouse_header = html.Span('Mouse Gene', style={'font-size':'120%', 'text-decoration':'underline'})
+            mouse_md = dcc.Markdown(dedent('''''' +
+                '\n\n**Gene Name**: *{}*'.format(gene_name) +
+                '\n\n**Synonyms:** *{}*'.format(synonyms) +
+                '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) +
+                '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
+                '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
+                '\n\n**Location:** {}'.format(location) +
+                '\n\n**Functional Name:** {}'.format(function_name)))
+            mgi_html_id = html.B('MGI ID: ')
+            mgi_html_link = html.A(mgi_id, href=mgi_link, target='_blank')
+            human_header = html.Span('Human Homolog', style={'font-size':'120%', 'text-decoration':'underline'})
+            human_md = dcc.Markdown(dedent('''''' +
+                '\n\n**Human Homolog Name**: *{}*'.format(human_homolog_name) +
+                '\n\n**Human Synonyms:** *{}*'.format(human_synonyms) +
+                # Human homologs almost always have similar functional names, so leave out for now
+                '\n\n**Homolog Location:** {}'.format(human_location)))
+            hgnc_html_id = html.B('HGNC ID: ')
+            hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
+            omim_html_id = html.B('OMIM ID: ')
+            omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
+
+            mouse_details = html.Details([
+                    html.Summary(mouse_header, style={'position': 'relative'}),
+                    html.Div([
+                        mouse_md,
+                        mgi_html_id,
+                        mgi_html_link
+                    ])
+                ], open=True)
+
+            human_details = html.Details([
+                    html.Summary(human_header, style={'position':'relative'}),
+                    html.Div([
+                       human_md,
+                       hgnc_html_id,
+                       hgnc_html_link,
+                       html.P('\n'),
+                       omim_html_id,
+                       omim_html_link
+                    ])
+                ], open=True)
+
+            return [mouse_details, human_details]
+
+        if organism_type == 'human':
+            homolog_annos = homolog_annos_human
+            organism_string = 'human'
+
+            gene_annos = homolog_annos[(homolog_annos['Symbol']==gene_name) & (homolog_annos['Common Organism Name']==organism_string)]
+            print(gene_annos)
+
+            try:
+                hgnc_id = gene_annos['HGNC ID'].values[0]
+            except:
+                hgnc_id = 'NA'
+
+            try:
+                location = gene_annos['Genetic Location'].values[0]
+            except:
+                location = 'NA'
+            
+            try:
+                function_name = gene_annos['Name'].values[0]
+            except:
+                function_name = 'NA'
+
+            try:
+                synonyms = (', ').join(gene_annos['Synonyms'].values[0].split('|'))
+            except:
+                synonyms = 'NA'
+
+            try:
+                hgnc_number = hgnc_id.split(':')[1]
+                hgnc_link = 'https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/' + hgnc_number
+            except:
+                hgnc_link ='NA'
+
+            try:
+                synonyms = (', ').join(gene_annos['Synonyms'].values[0].split('|'))
+            except:
+                synonyms = 'NA'
+
+            try:
+                omim_id = gene_annos['OMIM Gene ID'].values[0]
+                omim_number = omim_id.split(':')[1]
+                omim_link = 'https://omim.org/entry/' + omim_number
+            except:
+                omim_id = 'NA'
+                omim_link = 'NA'
+
+            human_header = html.Span('Human Gene', style={'font-size':'120%', 'text-decoration':'underline'})
+            human_md = dcc.Markdown(dedent('''''' +
+                '\n\n**Gene Name**: *{}*'.format(gene_name) +
+                '\n\n**Synonyms:** *{}*'.format(synonyms) +
+                '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) +
+                '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
+                '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
+                '\n\n**Location:** {}'.format(location) +
+                '\n\n**Functional Name:** {}'.format(function_name) +
+                # Human homologs almost always have similar functional names, so leave out for now
+                '\n\n**Location:** {}'.format(location)))
+            hgnc_html_id = html.B('HGNC ID: ')
+            hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
+            omim_html_id = html.B('OMIM ID: ')
+            omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
+
+            human_details = html.Details([
                 html.Summary(human_header, style={'position':'relative'}),
                 html.Div([
                    human_md,
@@ -199,11 +290,10 @@ def generate_gene_info(clickdata, df=None):
                    hgnc_html_link,
                    html.P('\n'),
                    omim_html_id,
-                   omim_html_link
-                ])
-            ], open=True)
-
-        return [mouse_details, human_details]
+                   omim_html_link])
+                ], open=True)
+            
+            return [human_details]
 
 # Probably want to rename this
 def generate_collapsible_tree():
@@ -399,6 +489,8 @@ def serve_layout(tab_plots=[], tab_tables=[]):
         children=[
             # Hidden Div to store session
             html.Div(id='session-id', style={'display':'none'}),
+            # Hidden Div as store for organism type
+            html.Div(id='organism-div', style={'display':'none'}),
             # Store timestamps of plot clicks help determine last plot clicked
             html.Div(id='volcano-plot-timediv', style={'display':'none'}),
             html.Div(id='ma-plot-timediv', style={'display':'none'}),
@@ -431,7 +523,20 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                         chunkSize=500_000,
                                         defaultStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
                                         activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
-                                        completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'})
+                                        completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'}),
+                                                      # Gene highlighter dropdown menu
+
+                                    # Allow selection of organism for populating gene information
+                                    html.Summary('Select Organism', style={'margin-top':'5px'}), 
+                                    dcc.Dropdown(
+                                        id='organism-select',
+                                        multi=False,
+                                        options=[
+                                            {'label':'Mouse', 'value':'mouse'},
+                                            {'label':'Human','value':'human'},
+                                        ],
+                                        value='mouse'
+                                    )
                                 ],
                                 open=True,
                                 style=left_panel_details_style),
@@ -445,7 +550,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                     id='gene-dropdown',
                                     multi=True,),])],
                                 style=left_panel_details_style,
-                                open=True),
+                                open=False),
                             html.Hr(style={'margin':'0px'}),
 
                             # !! Implement GO Filtering!
@@ -459,7 +564,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                             #         ]
                             #         )],
                             #     style=left_panel_details_style,
-                            #     open=True),
+                            #     open=False),
                             # html.Hr(style={'margin':'0px'}),
 
 
@@ -474,7 +579,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                         submit_button_id='pvalue-submit-button',
                                         reset_button_id='pvalue-reset-button'),
                                 ],
-                                open=True,
+                                open=False,
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
 
@@ -489,7 +594,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                         submit_button_id='foldchange-submit-button',
                                         reset_button_id='foldchange-reset-button'),
                                 ],
-                                open=True,
+                                open=False,
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
 
@@ -504,7 +609,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                         submit_button_id = 'basemean-submit-button',
                                         reset_button_id='basemean-reset-button'),
                                 ],
-                                open=True,
+                                open=False,
                                 style=left_panel_details_style),
                             html.Hr(style={'margin':'0px'}),
                         ],
@@ -545,6 +650,24 @@ tab_table_highlighted= generate_tab_table('Highlighted Genes', 'highlighted-gene
 app.layout = serve_layout(
     [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings],
     [tab_table_all, tab_table_highlighted])
+
+@app.callback(
+    Output('organism-div', 'children'),
+    [Input('session-id', 'children'),
+     Input('organism-select', 'value')]
+)
+def set_organism_type(session_id, organism_type):
+    print('-> "Triggered set_organism_type"')
+    # if (organism_type is None) or (session_id is None):
+    if organism_type is None:
+         raise dash.exceptions.PreventUpdate()
+    else:
+        print(organism_type)
+        # with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
+        #     json.dump(global_vars, json_write) 
+        # pass
+        # return organism_type
+        return organism_type
 
 #Get data from user, set session ID, and set up slider initial values
 @app.callback(
@@ -611,7 +734,8 @@ def handle_df(filenames):
             'pvalue_reset_click_count':None,
             'foldchange_reset_click_count':None,
             'basemean_reset_click_count':None,
-            'gene_dropdown_value': []
+            'gene_dropdown_value': [],
+            # 'organism_dropdown_value':None
         }
         with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
             json.dump(global_vars, json_write)
@@ -653,12 +777,6 @@ def handle_df(filenames):
                 max_transform_basemean,
                 get_spaced_marks(min_transform_basemean, max_transform_basemean),
         )
-
-def determine_organism():
-    pass
-
-def set_organism():
-    pass
 
 # Relies on <measurement>-<component> naming consistency in layout
 def slider_setup(measurement_name):
@@ -754,6 +872,7 @@ def populate_graphs(
     basemean_slider_value,
     settings_rendering_radio_value,
     ):
+    # print(dropdown_value_gene_list)
     print('-> Triggered "populate_graphs"')
     start_time = timeit.default_timer()
 
@@ -821,7 +940,6 @@ def populate_graphs(
         mv_traces = [go.Scatter3d(**mv_traces_args_dict)]
 
         if dropdown_value_gene_list is not None:
-
             # Store gene list in global variable for use in other callbacks
             with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:
                 global_vars = json.load(json_read)
@@ -1011,11 +1129,13 @@ for plot_id in plot_id_list:
     [Output('gene-dropdown', 'value'),
      Output('gene-info-markdown', 'children')],
     [Input('session-id', 'children')] +
+    [Input('organism-div', 'children')] +
     [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
     [Input(plot_id, 'clickData') for plot_id in plot_id_list]
 )
 def gene_click_actions(
     session_id,
+    organism_type,
     volcano_plot_timediv,
     ma_plot_timediv,
     mavolc_plot_timediv,
@@ -1060,7 +1180,7 @@ def gene_click_actions(
                 updated_gene_dropdown_value = global_vars['gene_dropdown_value']
 
             # Generate Gene Info panel
-            markdown = generate_gene_info(clickdata=clickdata, df=df)
+            markdown = generate_gene_info(clickdata=clickdata, df=df, organism_type=organism_type)
 
             print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
             
@@ -1069,3 +1189,4 @@ def gene_click_actions(
 if __name__ == '__main__':
     # app.run_server()
     app.run_server(debug=True, dev_tools_ui=True)
+    # app.run_server(debug=False, dev_tools_ui=True)
