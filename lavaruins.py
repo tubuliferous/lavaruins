@@ -735,7 +735,7 @@ def handle_df(filenames):
             json.dump(global_vars, json_write)
 
         # Calculating these values upfront sidesteps weird bug where np.log functions
-        # return positively or negatively infinite outpu values for input values between
+        # return positively or negatively infinite output values for input values between
         # roughly 1e-12 and le-15 and not above or below those values (except for 0)
         # !!Hack: set adjusted p-values beyond numerical precision of Excel
         # smallest_float = find_float_limits()[0]
@@ -1138,7 +1138,7 @@ def populate_tables(session_id, dropdown_value_gene_list):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        df = pd.read_json('temp_data_files/' + session_id)
 
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
@@ -1212,7 +1212,6 @@ def gene_click_actions(
     if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
         return []
     else:
-
         plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
                                'ma-plot': string_to_int(ma_plot_timediv),
                                'maxvolc-plot': string_to_int(mavolc_plot_timediv)}
@@ -1246,7 +1245,7 @@ def gene_click_actions(
 )
 def display_gene_markdown(gene_dropdown_list, organism_type, session_id):
     if len(gene_dropdown_list) != 0:
-        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        df = pd.read_json('temp_data_files/' + session_id)
         markdown = generate_gene_info(gene_name=gene_dropdown_list[-1], df=df, organism_type=organism_type)
     else:
         markdown = generate_gene_info('default')
