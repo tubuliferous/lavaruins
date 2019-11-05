@@ -653,8 +653,8 @@ app.layout = serve_layout(
 
 @app.callback(
     Output('organism-div', 'children'),
-    [Input('session-id', 'children'),
-     Input('organism-select', 'value')]
+    [Input('session-id', 'children')],
+    [State('organism-select', 'value')]
 )
 def set_organism_type(session_id, organism_type):
     print('-> "Triggered set_organism_type"')
@@ -1264,5 +1264,6 @@ def display_gene_markdown(gene_dropdown_list, organism_type, session_id):
 if __name__ == '__main__':
     # app.run_server()
     # app.run_server(debug=True, dev_tools_ui=True, threaded=False, processes=4)
-    app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    # app.run_server(debug=False, dev_tools_ui=True, threaded=True)
+    # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
+    app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
+    
