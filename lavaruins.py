@@ -494,7 +494,9 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             # Store timestamps of plot clicks help determine last plot clicked
             html.Div(id='volcano-plot-timediv', style={'display':'none'}),
             html.Div(id='ma-plot-timediv', style={'display':'none'}),
-            html.Div(id='mavolc-plot-timediv', style={'display':'none'}),
+            html.Div(id='maxvolc-plot-timediv', style={'display':'none'}),
+            # Store DataFrame subset that acts as simultaneous trigger for multiple plots 
+            dcc.Store(id='data-subset', storage_type='memory'),
             # App title header
             html.A(children=[
                 html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),], 
@@ -641,7 +643,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
 
 tab_plot_volcano = generate_tab_plot('Volcano Plot', 'volcano-plot', type='2D')
 tab_plot_ma = generate_tab_plot('MA Plot', 'ma-plot', type='2D')
-tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'mavolc-plot', type='3D')
+tab_plot_mavolc = generate_tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D')
 tab_plot_settings = generate_tab_plot('Plot Settings', 'settings-plot', type='settings')
 
 tab_table_all= generate_tab_table('All Genes', 'all-genes-table')
@@ -663,10 +665,6 @@ def set_organism_type(session_id, organism_type):
          raise dash.exceptions.PreventUpdate()
     else:
         print(organism_type)
-        # with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-        #     json.dump(global_vars, json_write) 
-        # pass
-        # return organism_type
         return organism_type
 
 #Get data from user, set session ID, and set up slider initial values
@@ -737,7 +735,7 @@ def handle_df(filenames):
             'gene_dropdown_value': [],
             # 'organism_dropdown_value':None
         }
-        with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
+        with open('temp_data_files/' + session_id + '_global_variables', 'w') as json_write:
             json.dump(global_vars, json_write)
 
         # Calculating these values upfront sidesteps weird bug where np.log functions
@@ -809,7 +807,7 @@ def slider_setup(measurement_name):
         if session_id is None:
             raise dash.exceptions.PreventUpdate()
         else:
-            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:
+            with open('temp_data_files/' + session_id + '_global_variables') as json_read:
                 global_vars = json.load(json_read)
 
             set_min_transform = slider_min
@@ -822,7 +820,7 @@ def slider_setup(measurement_name):
                 set_min_transform = slider_min
                 set_max_transform = slider_max
                 global_vars[measurement_name + '_reset_click_count'] = reset_button
-                with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
+                with open('temp_data_files/' + session_id + '_global_variables', 'w') as json_write:
                     json.dump(global_vars, json_write)
 
             return  [set_min_transform, set_max_transform]
@@ -847,33 +845,28 @@ def populate_gene_dropdown(session_id):
         print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
         return dropdown_options
 
-# Generate plots from imported RNAseq file
+# Subset data from imported RNAseq file on slider values
 @app.callback(
-    [
-        Output('volcano-plot', 'figure'),
-        Output('ma-plot', 'figure'),
-        Output('mavolc-plot', 'figure'),
-    ],
+    Output('data-subset', 'data'),
     [
         Input('session-id', 'children'),
-        Input('gene-dropdown', 'value'),
         Input('pvalue-slider', 'value'),
         Input('foldchange-slider', 'value'),
         Input('basemean-slider', 'value'),
-        Input('settings-rendering-radio', 'value')
+        # Input('settings-rendering-radio', 'value')
     ],
 
     )
-def populate_graphs(
+def subset_data(
     session_id,
-    dropdown_value_gene_list,
+    # dropdown_value_gene_list,
     pvalue_slider_value,
     foldchange_slider_value,
     basemean_slider_value,
-    settings_rendering_radio_value,
+    # settings_rendering_radio_value,
     ):
     # print(dropdown_value_gene_list)
-    print('-> Triggered "populate_graphs"')
+    print('-> Triggered "subset_data"')
     start_time = timeit.default_timer()
 
     if session_id is None:
@@ -897,37 +890,79 @@ def populate_graphs(
             max_slider = basemean_slider_value[1]
             df = df[df['log10basemean'].between(min_slider, max_slider)]
 
-        marker_settings_2d = {
-            'color':'black',
-            'size':8,
-            'opacity':0.5
+    print('\tsubset_data elapsed time:', timeit.default_timer() - start_time)
+
+    return df.to_dict()
+
+def generate_scatter(
+    df,
+    dropdown_value_gene_list,
+    settings_rendering_radio_value,
+    plot_title,
+    x_colname,
+    x_axis_title, 
+    y_colname,
+    y_axis_title,
+    z_colname=None,
+    z_axis_title=None):
+    marker_settings_2d = {
+        'color':'black',
+        'size':8,
+        'opacity':0.5
+    }
+    
+    # 2D plot setup
+    if z_colname == None:
+        traces_dict = dict(
+            x=df[x_colname],
+            y=df[y_colname],
+            mode='markers',
+            text=df['gene_ID'],
+            name='All Genes',
+            marker=marker_settings_2d)
+        if settings_rendering_radio_value == 'gl':
+            traces = [go.Scattergl(**traces_dict)]
+        elif settings_rendering_radio_value == 'svg':
+            traces = [go.Scatter(**traces_dict)]
+        
+        dim2_plot_margins = {'t':100, 'r':30, 'l':75, 'b':100}
+
+        if dropdown_value_gene_list is not None:
+            for gene_name in dropdown_value_gene_list:
+                gene_slice_df = df[df['gene_ID'] == gene_name]
+                traces_append_dict = dict(
+                    x=gene_slice_df[x_colname],
+                    y=gene_slice_df[y_colname],
+                    mode='markers',
+                    textposition=['bottom center'],
+                    text=gene_slice_df['gene_ID'],
+                    marker={'size':11, 'line':{'width':2, 'color':'white'}},
+                    name=gene_name
+                )
+                if settings_rendering_radio_value == 'gl':
+                    traces.append(go.Scattergl(**traces_append_dict))
+                elif settings_rendering_radio_value == 'svg':
+                    traces.append(go.Scatter(**traces_append_dict))
+
+        figure = {
+            'data': traces,
+            'layout':go.Layout(
+                # Allows points to be highlighted when selected using built-in plot features
+                # Consider using 'clickmode='event+select'' for box selection
+                hovermode='closest',
+                title=plot_title,
+                xaxis=x_axis_title,
+                yaxis=y_axis_title,
+                margin=dim2_plot_margins,
+                # Keeps zoom level constant
+                # Ref: https://community.plot.ly/t/preserving-ui-state-like-zoom-in-dcc-graph-with-uirevision/15793
+                uirevision=True
+            )
         }
 
-        v_traces_args_dict = dict(
-            x=df['log2FoldChange'],
-            y=df['neg_log10_padj'],
-            mode='markers',
-            text=df['gene_ID'],
-            name='All Genes',
-            marker=marker_settings_2d)
-        if settings_rendering_radio_value == 'gl':
-            v_traces = [go.Scattergl(**v_traces_args_dict)]
-        elif settings_rendering_radio_value == 'svg':
-            v_traces = [go.Scatter(**v_traces_args_dict)]
-
-        m_traces_args_dict = dict(
-            x=df['log10basemean'],
-            y=df['log2FoldChange'],
-            mode='markers',
-            text=df['gene_ID'],
-            name='All Genes',
-            marker=marker_settings_2d)
-        if settings_rendering_radio_value == 'gl':
-            m_traces = [go.Scattergl(**m_traces_args_dict)]
-        elif settings_rendering_radio_value == 'svg':
-            m_traces = [go.Scatter(**m_traces_args_dict)]
-
-        mv_traces_args_dict = dict(
+    # 3D plot setup
+    else:
+        traces_dict = dict(
             x=df['log10basemean'],
             y=df['log2FoldChange'],
             z=df['neg_log10_padj'],
@@ -937,48 +972,12 @@ def populate_graphs(
             # Use different marker settings for WebGL because sizes
             # render differently
             marker={'size':4, 'color':'black', 'opacity':0.5})
-        mv_traces = [go.Scatter3d(**mv_traces_args_dict)]
+        traces = [go.Scatter3d(**traces_dict)]
 
         if dropdown_value_gene_list is not None:
-            # Store gene list in global variable for use in other callbacks
-            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:
-                global_vars = json.load(json_read)
-            global_vars['gene_dropdown_value'] = dropdown_value_gene_list
-            with open('temp_data_files/' + session_id + 'global_variables.json', 'w') as json_write:
-                json.dump(global_vars, json_write)
-
             for gene_name in dropdown_value_gene_list:
-
                 gene_slice_df = df[df['gene_ID'] == gene_name]
-
-                v_traces_append_args_dict = dict(
-                    x=gene_slice_df['log2FoldChange'],
-                    y=gene_slice_df['neg_log10_padj'],
-                    mode='markers',
-                    textposition=['bottom center'],
-                    text=gene_slice_df['gene_ID'],
-                    marker={'size':11, 'line':{'width':2, 'color':'white'}},
-                    name=gene_name
-                )
-                if settings_rendering_radio_value == 'gl':
-                    v_traces.append(go.Scattergl(**v_traces_append_args_dict))
-                elif settings_rendering_radio_value == 'svg':
-                    v_traces.append(go.Scatter(**v_traces_append_args_dict))
-
-                m_traces_append_args_dict = dict(
-                    x=gene_slice_df['log10basemean'],
-                    y=gene_slice_df['log2FoldChange'],
-                    mode='markers',
-                    text=gene_slice_df['gene_ID'],
-                    marker={'size':11, 'line':{'width':2, 'color':'white'}},
-                    name=gene_name
-                )
-                if settings_rendering_radio_value == 'gl':
-                    m_traces.append(go.Scattergl(**m_traces_append_args_dict))
-                elif settings_rendering_radio_value == 'svg':
-                    m_traces.append(go.Scatter(**m_traces_append_args_dict))
-
-                mv_traces_append_args_dict = dict(
+                traces_append_dict = dict(
                     x=gene_slice_df['log10basemean'],
                     y=gene_slice_df['log2FoldChange'],
                     z=gene_slice_df['neg_log10_padj'],
@@ -987,42 +986,10 @@ def populate_graphs(
                     marker={'size':6, 'line':{'width':2, 'color':'white'}},
                     name=gene_name
                 )
-                mv_traces.append(go.Scatter3d(mv_traces_append_args_dict))
+                traces.append(go.Scatter3d(traces_append_dict))
 
-        dim2_plot_margins = {'t':100, 'r':30, 'l':75, 'b':100}
-
-        volc_figure = {
-            'data': v_traces,
-            'layout':go.Layout(
-                # Allows points to be highlighted when selected using built-in plot features
-                # Consider using 'clickmode='event+select'' for box selection
-                hovermode='closest',
-                title='Significance vs. Effect Size',
-                xaxis={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'},
-                yaxis={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'},
-                margin=dim2_plot_margins,
-                # Keeps zoom level constant
-                # Ref: https://community.plot.ly/t/preserving-ui-state-like-zoom-in-dcc-graph-with-uirevision/15793
-                uirevision=True
-            )
-        }
-
-        ma_figure={
-            'data':m_traces,
-            'layout':go.Layout(
-                hovermode='closest',
-                title='Log Ratio (M) vs. Mean Average (A)',
-                xaxis={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'},
-                yaxis={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'},
-                margin=dim2_plot_margins,
-                # Keeps zoom level constant
-                # Ref: https://community.plot.ly/t/preserving-ui-state-like-zoom-in-dcc-graph-with-uirevision/15793
-                uirevision=True
-            )
-        }
-
-        mavolc_figure={
-            'data':mv_traces,
+        figure={
+            'data':traces,
             'layout':go.Layout(
                 hovermode='closest',
                 title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
@@ -1045,10 +1012,103 @@ def populate_graphs(
             )
         }
 
-    print('\tpopulate_graphs elapsed time:', timeit.default_timer() - start_time)
+    return figure
 
-    # return volc_figure, ma_figure, mavolc_figure
-    return volc_figure, ma_figure, mavolc_figure
+# Generate volcano plot from imported RNAseq subset
+@app.callback(
+    Output('volcano-plot', 'figure'),
+    [Input('session-id', 'children'),
+     Input('settings-rendering-radio', 'value'),
+     Input('gene-dropdown', 'value'),
+     Input('data-subset', 'data')]
+)
+def plot_volcano(
+    session_id,
+    settings_rendering_radio_value,
+    dropdown_value_gene_list,
+    data
+):
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        # df = pd.read_json('temp_data_files/' + session_id)
+        df = pd.DataFrame.from_dict(data)
+        # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
+        figure = generate_scatter(
+            df=df,
+            dropdown_value_gene_list=dropdown_value_gene_list,
+            settings_rendering_radio_value=settings_rendering_radio_value,
+            plot_title='Significance vs. Effect Size',
+            x_colname='log2FoldChange',
+            x_axis_title={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, 
+            y_colname='neg_log10_padj',
+            y_axis_title={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'})
+    return figure
+
+
+# Generate MA plot from imported RNAseq subset
+@app.callback(
+    Output('ma-plot', 'figure'),
+    [Input('session-id', 'children'),
+     Input('settings-rendering-radio', 'value'),
+     Input('gene-dropdown', 'value'),
+     Input('data-subset', 'data')]
+)
+def plot_ma(
+    session_id,
+    settings_rendering_radio_value,
+    dropdown_value_gene_list,
+    data
+):
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        # df = pd.read_json('temp_data_files/' + session_id)
+        df = pd.DataFrame.from_dict(data)
+        # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
+        figure = generate_scatter(
+            df=df,
+            dropdown_value_gene_list=dropdown_value_gene_list,
+            settings_rendering_radio_value=settings_rendering_radio_value,
+            plot_title='Log Ratio (M) vs. Mean Average (A)',
+            x_colname='log10basemean',
+            x_axis_title={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'}, 
+            y_colname='log2FoldChange',
+            y_axis_title={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'})
+    return figure
+
+# Generate MAxVolc plot from imported RNAseq subset
+@app.callback(
+    Output('maxvolc-plot', 'figure'),
+    [Input('session-id', 'children'),
+     Input('settings-rendering-radio', 'value'),
+     Input('gene-dropdown', 'value'),
+     Input('data-subset', 'data')]
+)
+def plot_maxvolc(
+    session_id,
+    settings_rendering_radio_value,
+    dropdown_value_gene_list,
+    data
+):
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        # df = pd.read_json('temp_data_files/' + session_id)
+        df = pd.DataFrame.from_dict(data)
+        # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
+        figure = generate_scatter(
+            df=df,
+            dropdown_value_gene_list=dropdown_value_gene_list,
+            settings_rendering_radio_value=settings_rendering_radio_value,
+            plot_title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
+            x_colname='log10basemean',
+            x_axis_title=dict(title='A'), 
+            y_colname='log2FoldChange',
+            y_axis_title=dict(title='M'),
+            z_colname='neg_log10_padj',
+            z_axis_title=dict(title='Significance'))
+    return figure
 
 # For downloading tables:
 #   - https://github.com/plotly/dash-recipes/blob/master/dash-download-file-link-server.py
@@ -1072,16 +1132,18 @@ def serve_static(path):
     [
         Input('session-id', 'children'),
         Input('gene-dropdown', 'value'),
-    ]
+    ],
+    [State('data-subset', 'data')]
 )
-def populate_tables(session_id, dropdown_value_gene_list):
+def populate_tables(session_id, dropdown_value_gene_list, data):
     print('-> Triggered "populate_tables"')
     start_time = timeit.default_timer()
 
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = pd.read_json('temp_data_files/' + session_id)
+        # df = pd.read_json('temp_data_files/' + session_id)
+        df = pd.DataFrame.from_dict(data)
 
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
@@ -1121,7 +1183,7 @@ def store_plot_timestamp(input_plot_id):
         if click:
             return int(round(time.time() * 1000))
 
-plot_id_list = ['volcano-plot', 'ma-plot', 'mavolc-plot']
+plot_id_list = ['volcano-plot', 'ma-plot', 'maxvolc-plot']
 for plot_id in plot_id_list:
     store_plot_timestamp(plot_id)
 
@@ -1131,7 +1193,9 @@ for plot_id in plot_id_list:
     [Input('session-id', 'children')] +
     [Input('organism-div', 'children')] +
     [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
-    [Input(plot_id, 'clickData') for plot_id in plot_id_list]
+    [Input(plot_id, 'clickData') for plot_id in plot_id_list],
+    [State('gene-dropdown', 'value'),
+     State('data-subset', 'data')]
 )
 def gene_click_actions(
     session_id,
@@ -1141,7 +1205,9 @@ def gene_click_actions(
     mavolc_plot_timediv,
     volcano_clickdata,
     ma_clickdata,
-    mavolc_clickdata
+    mavolc_clickdata,
+    current_gene_dropdown_list,
+    data
     ):
 
     print('-> Triggered "gene_click_actions"')
@@ -1154,7 +1220,7 @@ def gene_click_actions(
 
         plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
                                'ma-plot': string_to_int(ma_plot_timediv),
-                               'mavolc-plot': string_to_int(mavolc_plot_timediv)}
+                               'maxvolc-plot': string_to_int(mavolc_plot_timediv)}
 
         # Get the last-clicked plot by largest timestamp
         last_clicked_plot = max(plot_timestamp_dict, key=plot_timestamp_dict.get)
@@ -1164,29 +1230,27 @@ def gene_click_actions(
             clickdata = volcano_clickdata
         if last_clicked_plot == 'ma-plot':
             clickdata = ma_clickdata
-        if last_clicked_plot == 'mavolc-plot':
+        if last_clicked_plot == 'maxvolc-plot':
             clickdata = mavolc_clickdata
 
         if clickdata:
-            df = pd.read_json('temp_data_files/' + session_id)
+            # df = pd.read_json('temp_data_files/' + session_id)
+            df = pd.DataFrame.from_dict(data)
 
-            # For highlighting clicked genes
-            with open('temp_data_files/' + session_id + 'global_variables.json') as json_read:
-                global_vars = json.load(json_read)
+            # # For highlighting clicked genes
             clicked_gene = clickdata['points'][0]['text']
-            if clicked_gene not in global_vars['gene_dropdown_value']:
-                updated_gene_dropdown_value = global_vars['gene_dropdown_value'] + [clicked_gene]
-            else:
-                updated_gene_dropdown_value = global_vars['gene_dropdown_value']
+            if clicked_gene not in current_gene_dropdown_list:
+                updated_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
 
             # Generate Gene Info panel
             markdown = generate_gene_info(clickdata=clickdata, df=df, organism_type=organism_type)
 
             print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
             
-            return(updated_gene_dropdown_value, markdown)
+            return(updated_gene_dropdown_list, markdown)
 
 if __name__ == '__main__':
     # app.run_server()
-    app.run_server(debug=True, dev_tools_ui=True)
-    # app.run_server(debug=False, dev_tools_ui=True)
+    # app.run_server(debug=True, dev_tools_ui=True, threaded=False, processes=4)
+    app.run_server(debug=False, dev_tools_ui=True, processes=4, threaded=False)
+    # app.run_server(debug=False, dev_tools_ui=True, threaded=True)
