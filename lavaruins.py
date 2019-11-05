@@ -496,7 +496,9 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             html.Div(id='ma-plot-timediv', style={'display':'none'}),
             html.Div(id='maxvolc-plot-timediv', style={'display':'none'}),
             # Store DataFrame subset that acts as simultaneous trigger for multiple plots 
-            dcc.Store(id='data-subset', storage_type='memory'),
+            # dcc.Store(id='data-subset', storage_type='memory'),
+            # Hidden sink for subset_data callback
+            html.Div(id='data-subset-sink', style={'display':'none'}),
             # App title header
             html.A(children=[
                 html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),], 
@@ -847,7 +849,7 @@ def populate_gene_dropdown(session_id):
 
 # Subset data from imported RNAseq file on slider values
 @app.callback(
-    Output('data-subset', 'data'),
+    Output('data-subset-sink', 'children'),
     [
         Input('session-id', 'children'),
         Input('pvalue-slider', 'value'),
@@ -868,31 +870,26 @@ def subset_data(
     # print(dropdown_value_gene_list)
     print('-> Triggered "subset_data"')
     start_time = timeit.default_timer()
-
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
         df = pd.read_json('temp_data_files/' + session_id)
         df = df.rename(index=str, columns={'symbol':'gene_ID'})
-
         if pvalue_slider_value is not None:
             min_slider = pvalue_slider_value[0]
             max_slider = pvalue_slider_value[1]
             df = df[df['neg_log10_padj'].between(min_slider, max_slider)]
-
         if foldchange_slider_value is not None:
             min_slider = foldchange_slider_value[0]
             max_slider = foldchange_slider_value[1]
             df = df[df['log2FoldChange'].between(min_slider, max_slider)]
-
         if basemean_slider_value is not None:
             min_slider = basemean_slider_value[0]
             max_slider = basemean_slider_value[1]
             df = df[df['log10basemean'].between(min_slider, max_slider)]
-
     print('\tsubset_data elapsed time:', timeit.default_timer() - start_time)
-
-    return df.to_dict()
+    df.to_json('temp_data_files/' + session_id + '_subset')
+    return None
 
 def generate_scatter(
     df,
@@ -1020,19 +1017,19 @@ def generate_scatter(
     [Input('session-id', 'children'),
      Input('settings-rendering-radio', 'value'),
      Input('gene-dropdown', 'value'),
-     Input('data-subset', 'data')]
+     Input('data-subset-sink', 'children')]
 )
 def plot_volcano(
     session_id,
     settings_rendering_radio_value,
     dropdown_value_gene_list,
-    data
+    data_sink
 ):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        # df = pd.read_json('temp_data_files/' + session_id)
-        df = pd.DataFrame.from_dict(data)
+        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        # df = pd.DataFrame.from_dict(data)
         # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
         figure = generate_scatter(
             df=df,
@@ -1052,19 +1049,19 @@ def plot_volcano(
     [Input('session-id', 'children'),
      Input('settings-rendering-radio', 'value'),
      Input('gene-dropdown', 'value'),
-     Input('data-subset', 'data')]
+     Input('data-subset-sink', 'children')]
 )
 def plot_ma(
     session_id,
     settings_rendering_radio_value,
     dropdown_value_gene_list,
-    data
+    data_sink
 ):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        # df = pd.read_json('temp_data_files/' + session_id)
-        df = pd.DataFrame.from_dict(data)
+        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        # df = pd.DataFrame.from_dict(data)
         # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
         figure = generate_scatter(
             df=df,
@@ -1083,7 +1080,7 @@ def plot_ma(
     [Input('session-id', 'children'),
      Input('settings-rendering-radio', 'value'),
      Input('gene-dropdown', 'value'),
-     Input('data-subset', 'data')]
+     Input('data-subset-sink', 'children')]
 )
 def plot_maxvolc(
     session_id,
@@ -1094,8 +1091,8 @@ def plot_maxvolc(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        # df = pd.read_json('temp_data_files/' + session_id)
-        df = pd.DataFrame.from_dict(data)
+        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        # df = pd.DataFrame.from_dict(data)
         # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
         figure = generate_scatter(
             df=df,
@@ -1132,18 +1129,17 @@ def serve_static(path):
     [
         Input('session-id', 'children'),
         Input('gene-dropdown', 'value'),
-    ],
-    [State('data-subset', 'data')]
+    ]
 )
-def populate_tables(session_id, dropdown_value_gene_list, data):
+def populate_tables(session_id, dropdown_value_gene_list):
     print('-> Triggered "populate_tables"')
     start_time = timeit.default_timer()
 
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        # df = pd.read_json('temp_data_files/' + session_id)
-        df = pd.DataFrame.from_dict(data)
+        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        # df = pd.DataFrame.from_dict(data)
 
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
@@ -1194,8 +1190,7 @@ for plot_id in plot_id_list:
     [Input('organism-div', 'children')] +
     [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
     [Input(plot_id, 'clickData') for plot_id in plot_id_list],
-    [State('gene-dropdown', 'value'),
-     State('data-subset', 'data')]
+    [State('gene-dropdown', 'value')]
 )
 def gene_click_actions(
     session_id,
@@ -1206,8 +1201,7 @@ def gene_click_actions(
     volcano_clickdata,
     ma_clickdata,
     mavolc_clickdata,
-    current_gene_dropdown_list,
-    data
+    current_gene_dropdown_list
     ):
 
     print('-> Triggered "gene_click_actions"')
@@ -1234,8 +1228,8 @@ def gene_click_actions(
             clickdata = mavolc_clickdata
 
         if clickdata:
-            # df = pd.read_json('temp_data_files/' + session_id)
-            df = pd.DataFrame.from_dict(data)
+            df = pd.read_json('temp_data_files/' + session_id + '_subset')
+            # df = pd.DataFrame.from_dict(data)
 
             # # For highlighting clicked genes
             clicked_gene = clickdata['points'][0]['text']
