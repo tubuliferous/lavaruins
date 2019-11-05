@@ -696,7 +696,8 @@ def handle_df(filenames):
 
     else:
         session_id = str(uuid.uuid4())
-        # Only look at the last uploaded file
+        print('session_id: ' + session_id)
+        # Only look at the last uploaded file if multiple are dropped on LavaRuins
         filename = filenames[-1]
         df = parse_file_contents(filename)
 
@@ -844,13 +845,10 @@ def populate_gene_dropdown(session_id):
 # Subset data from imported RNAseq file on slider values
 @app.callback(
     Output('data-subset-sink', 'children'),
-    [
-        Input('session-id', 'children'),
-        Input('pvalue-slider', 'value'),
-        Input('foldchange-slider', 'value'),
-        Input('basemean-slider', 'value'),
-    ],
-
+    [Input('session-id', 'children'),
+     Input('pvalue-slider', 'value'),
+     Input('foldchange-slider', 'value'),
+     Input('basemean-slider', 'value')]
     )
 def subset_data(
     session_id,
@@ -881,6 +879,7 @@ def subset_data(
     df.to_json('temp_data_files/' + session_id + '_subset')
     return None
 
+# Function for generating scatter plots in callbacks below
 def generate_scatter(
     df,
     dropdown_value_gene_list,
@@ -1046,7 +1045,6 @@ def plot_volcano(
             y_axis_title={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'})
     return figure
 
-
 # Generate MA plot from imported RNAseq subset
 @app.callback(
     Output('ma-plot', 'figure'),
@@ -1158,7 +1156,7 @@ def populate_tables(session_id, dropdown_value_gene_list):
             # For downloads
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
             dropdown_slice_df.to_csv(highlighted_relative_filename)
-        print('\tpopulate_tables elapsed times:', timeit.default_timer() - start_time)
+        print('\tpopulate_tables elapsed time:', timeit.default_timer() - start_time)
         return(
             all_genes_table_columns,
             all_genes_table_data,
@@ -1183,10 +1181,7 @@ for plot_id in plot_id_list:
     store_plot_timestamp(plot_id)
 
 @app.callback(
-    # [
-        Output('gene-dropdown', 'value'),
-        # Output('gene-info-markdown', 'children')
-    # ],
+    Output('gene-dropdown', 'value'),
     [Input('session-id', 'children')] +
     [Input('organism-div', 'children')] +
     [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
@@ -1203,13 +1198,28 @@ def gene_click_actions(
     ma_clickdata,
     mavolc_clickdata,
     current_gene_dropdown_list
-    ):
+):
 
     print('-> Triggered "gene_click_actions"')
     start_time = timeit.default_timer()
 
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        with open('temp_data_files/' + session_id + '_global_variables') as json_read:
+            global_vars = json.load(json_read)
+
     # Prevent callback from firing if no click has been recorded on any plot
     if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
+        return []
+    # Hack to reset tables when a new file is loaded -- to prevent holding onto cells from previous data table
+    #   --The global_vars should be reset upon loading a new file, so the presence of the 'gene_click_session'
+    #     can be used to assess the presence of a dataset that hasn't been seen by gene_click_actions yet
+    elif 'gene_click_session' not in global_vars:
+        print('Gene click session_id mismatch')
+        global_vars['gene_click_session'] = True
+        with open('temp_data_files/' + session_id + '_global_variables', 'w') as json_write:
+            json.dump(global_vars, json_write)
         return []
     else:
         plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
@@ -1254,5 +1264,5 @@ def display_gene_markdown(gene_dropdown_list, organism_type, session_id):
 if __name__ == '__main__':
     # app.run_server()
     # app.run_server(debug=True, dev_tools_ui=True, threaded=False, processes=4)
-    app.run_server(debug=False, dev_tools_ui=True, processes=4, threaded=False)
+    app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
     # app.run_server(debug=False, dev_tools_ui=True, threaded=True)
