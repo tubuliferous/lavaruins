@@ -100,14 +100,11 @@ def parse_file_contents(filename):
         print(e)    
 
 # Setup gene information panel
-def generate_gene_info(clickdata, df=None, organism_type=None):
-
-    if clickdata == 'default':
+def generate_gene_info(gene_name='default', df=None, organism_type=None):
+    if gene_name == 'default':
         default_text = html.P(children = html.H5('Click on plotted gene for information'), style={'textAlign':'left'})
         return default_text
     else:
-        gene_name = clickdata['points'][0]['text']
-
         neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
         log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
         log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
@@ -528,7 +525,6 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                         defaultStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
                                         activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
                                         completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'}),
-                                                      # Gene highlighter dropdown menu
 
                                     # Allow selection of organism for populating gene information
                                     html.Summary('Select Organism', style={'margin-top':'5px'}), 
@@ -1171,8 +1167,10 @@ for plot_id in plot_id_list:
     store_plot_timestamp(plot_id)
 
 @app.callback(
-    [Output('gene-dropdown', 'value'),
-     Output('gene-info-markdown', 'children')],
+    # [
+        Output('gene-dropdown', 'value'),
+        # Output('gene-info-markdown', 'children')
+    # ],
     [Input('session-id', 'children')] +
     [Input('organism-div', 'children')] +
     [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
@@ -1196,7 +1194,7 @@ def gene_click_actions(
 
     # Prevent callback from firing if no click has been recorded on any plot
     if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
-        return [], generate_gene_info('default')
+        return []
     else:
 
         plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
@@ -1214,19 +1212,29 @@ def gene_click_actions(
         if last_clicked_plot == 'maxvolc-plot':
             clickdata = mavolc_clickdata
 
+        # Add gene to dropdown gene menu if clickdata isn't empty
         if clickdata:
-            df = pd.read_json('temp_data_files/' + session_id + '_subset')
-
-            # # For highlighting clicked genes
             clicked_gene = clickdata['points'][0]['text']
             if clicked_gene not in current_gene_dropdown_list:
                 updated_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
 
-            # Generate Gene Info panel
-            markdown = generate_gene_info(clickdata=clickdata, df=df, organism_type=organism_type)
-            
             print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
-            return(updated_gene_dropdown_list, markdown)
+            return(updated_gene_dropdown_list)
+
+# Generate Gene Info panel
+@app.callback(
+    Output('gene-info-markdown', 'children'),
+    [Input('gene-dropdown', 'value'),
+     Input('organism-select', 'value')],
+    [State('session-id', 'children')]
+)
+def display_gene_markdown(gene_dropdown_list, organism_type, session_id):
+    if len(gene_dropdown_list) != 0:
+        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        markdown = generate_gene_info(gene_name=gene_dropdown_list[-1], df=df, organism_type=organism_type)
+    else:
+        markdown = generate_gene_info('default')
+    return markdown
 
 if __name__ == '__main__':
     # app.run_server()
