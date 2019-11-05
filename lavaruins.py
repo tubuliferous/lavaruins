@@ -734,8 +734,6 @@ def handle_df(filenames):
             'pvalue_reset_click_count':None,
             'foldchange_reset_click_count':None,
             'basemean_reset_click_count':None,
-            'gene_dropdown_value': [],
-            # 'organism_dropdown_value':None
         }
         with open('temp_data_files/' + session_id + '_global_variables', 'w') as json_write:
             json.dump(global_vars, json_write)
@@ -855,19 +853,15 @@ def populate_gene_dropdown(session_id):
         Input('pvalue-slider', 'value'),
         Input('foldchange-slider', 'value'),
         Input('basemean-slider', 'value'),
-        # Input('settings-rendering-radio', 'value')
     ],
 
     )
 def subset_data(
     session_id,
-    # dropdown_value_gene_list,
     pvalue_slider_value,
     foldchange_slider_value,
     basemean_slider_value,
-    # settings_rendering_radio_value,
     ):
-    # print(dropdown_value_gene_list)
     print('-> Triggered "subset_data"')
     start_time = timeit.default_timer()
     if session_id is None:
@@ -1029,8 +1023,6 @@ def plot_volcano(
         raise dash.exceptions.PreventUpdate()
     else:
         df = pd.read_json('temp_data_files/' + session_id + '_subset')
-        # df = pd.DataFrame.from_dict(data)
-        # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
         figure = generate_scatter(
             df=df,
             dropdown_value_gene_list=dropdown_value_gene_list,
@@ -1061,8 +1053,6 @@ def plot_ma(
         raise dash.exceptions.PreventUpdate()
     else:
         df = pd.read_json('temp_data_files/' + session_id + '_subset')
-        # df = pd.DataFrame.from_dict(data)
-        # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
         figure = generate_scatter(
             df=df,
             dropdown_value_gene_list=dropdown_value_gene_list,
@@ -1092,8 +1082,6 @@ def plot_maxvolc(
         raise dash.exceptions.PreventUpdate()
     else:
         df = pd.read_json('temp_data_files/' + session_id + '_subset')
-        # df = pd.DataFrame.from_dict(data)
-        # df = df.rename(index=str, columns={'symbol':'gene_ID'}) !!Possibly unnecessary
         figure = generate_scatter(
             df=df,
             dropdown_value_gene_list=dropdown_value_gene_list,
@@ -1139,7 +1127,6 @@ def populate_tables(session_id, dropdown_value_gene_list):
         raise dash.exceptions.PreventUpdate()
     else:
         df = pd.read_json('temp_data_files/' + session_id + '_subset')
-        # df = pd.DataFrame.from_dict(data)
 
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
@@ -1229,7 +1216,6 @@ def gene_click_actions(
 
         if clickdata:
             df = pd.read_json('temp_data_files/' + session_id + '_subset')
-            # df = pd.DataFrame.from_dict(data)
 
             # # For highlighting clicked genes
             clicked_gene = clickdata['points'][0]['text']
@@ -1238,9 +1224,8 @@ def gene_click_actions(
 
             # Generate Gene Info panel
             markdown = generate_gene_info(clickdata=clickdata, df=df, organism_type=organism_type)
-
-            print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
             
+            print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
             return(updated_gene_dropdown_list, markdown)
 
 if __name__ == '__main__':
