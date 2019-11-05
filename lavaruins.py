@@ -892,11 +892,25 @@ def generate_scatter(
     y_axis_title,
     z_colname=None,
     z_axis_title=None):
+
     marker_settings_2d = {
         'color':'black',
         'size':8,
         'opacity':0.5
     }
+
+    highlight_colors = [
+        '#1f77b4',  # muted blue
+        '#d62728',  # brick red
+        '#ff7f0e',  # safety orange
+        '#2ca02c',  # cooked asparagus green
+        '#9467bd',  # muted purple
+        '#8c564b',  # chestnut brown
+        '#e377c2',  # raspberry yogurt pink
+        # '#7f7f7f',  # middle gray
+        '#bcbd22',  # curry yellow-green
+        '#17becf'   # blue-teal
+    ]
     
     # 2D plot setup
     if z_colname == None:
@@ -934,6 +948,7 @@ def generate_scatter(
         figure = {
             'data': traces,
             'layout':go.Layout(
+                colorway=highlight_colors,
                 # Allows points to be highlighted when selected using built-in plot features
                 # Consider using 'clickmode='event+select'' for box selection
                 hovermode='closest',
@@ -978,6 +993,7 @@ def generate_scatter(
         figure={
             'data':traces,
             'layout':go.Layout(
+                colorway=highlight_colors,
                 hovermode='closest',
                 title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
                 scene = dict(
