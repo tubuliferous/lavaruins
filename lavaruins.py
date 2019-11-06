@@ -493,8 +493,6 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             html.Div(id='volcano-plot-timediv', style={'display':'none'}),
             html.Div(id='ma-plot-timediv', style={'display':'none'}),
             html.Div(id='maxvolc-plot-timediv', style={'display':'none'}),
-            # Store DataFrame subset that acts as simultaneous trigger for multiple plots 
-            # dcc.Store(id='data-subset', storage_type='memory'),
             # Hidden sink for subset_data callback
             html.Div(id='data-subset-sink', style={'display':'none'}),
             # App title header
@@ -732,6 +730,7 @@ def handle_df(filenames):
             'pvalue_reset_click_count':None,
             'foldchange_reset_click_count':None,
             'basemean_reset_click_count':None,
+            'gene_dropdown_value_list': []
         }
         with open('temp_data_files/' + session_id + '_global_variables', 'w') as json_write:
             json.dump(global_vars, json_write)
@@ -1186,13 +1185,21 @@ plot_id_list = ['volcano-plot', 'ma-plot', 'maxvolc-plot']
 for plot_id in plot_id_list:
     store_plot_timestamp(plot_id)
 
+# Reset clickdata when loading new file
+@app.callback(
+    [Output(plot_id, 'clickData') for plot_id in plot_id_list],
+    [Input('session-id', 'children')]
+)
+def reset_clickdata(session_id):
+    return(None, None, None)
+
 @app.callback(
     Output('gene-dropdown', 'value'),
     [Input('session-id', 'children')] +
     [Input('organism-div', 'children')] +
     [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
     [Input(plot_id, 'clickData') for plot_id in plot_id_list],
-    [State('gene-dropdown', 'value')]
+    # [State('gene-dropdown', 'value')]
 )
 def gene_click_actions(
     session_id,
@@ -1203,7 +1210,7 @@ def gene_click_actions(
     volcano_clickdata,
     ma_clickdata,
     mavolc_clickdata,
-    current_gene_dropdown_list
+    # current_gene_dropdown_list
 ):
 
     print('-> Triggered "gene_click_actions"')
@@ -1215,19 +1222,8 @@ def gene_click_actions(
         with open('temp_data_files/' + session_id + '_global_variables') as json_read:
             global_vars = json.load(json_read)
 
-    # Prevent callback from firing if no click has been recorded on any plot
-    if all([timediv is None for timediv in [volcano_plot_timediv, ma_plot_timediv, mavolc_plot_timediv]]):
-        return []
-    # Hack to reset tables when a new file is loaded -- to prevent holding onto cells from previous data table
-    #   --The global_vars should be reset upon loading a new file, so the presence of the 'gene_click_session'
-    #     can be used to assess the presence of a dataset that hasn't been seen by gene_click_actions yet
-    elif 'gene_click_session' not in global_vars:
-        print('Gene click session_id mismatch')
-        global_vars['gene_click_session'] = True
-        with open('temp_data_files/' + session_id + '_global_variables', 'w') as json_write:
-            json.dump(global_vars, json_write)
-        return []
-    else:
+        current_gene_dropdown_list = global_vars['gene_dropdown_value_list']
+
         plot_timestamp_dict = {'volcano-plot': string_to_int(volcano_plot_timediv),
                                'ma-plot': string_to_int(ma_plot_timediv),
                                'maxvolc-plot': string_to_int(mavolc_plot_timediv)}
@@ -1248,9 +1244,17 @@ def gene_click_actions(
             clicked_gene = clickdata['points'][0]['text']
             if clicked_gene not in current_gene_dropdown_list:
                 updated_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
+    
+            # Write the new dropdown gene list back to the global variables file
+            global_vars['gene_dropdown_value_list'] = updated_gene_dropdown_list
+            with open('temp_data_files/' + session_id + '_global_variables', 'w') as json_write:
+                json.dump(global_vars, json_write) 
 
             print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
-            return(updated_gene_dropdown_list)
+            return updated_gene_dropdown_list
+        else:
+            print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
+            return []
 
 # Generate Gene Info panel
 @app.callback(
