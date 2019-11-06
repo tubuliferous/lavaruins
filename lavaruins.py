@@ -17,6 +17,7 @@ import flask
 import dash_collapsible_tree
 # import dash_extendable_graph as deg
 import timeit
+import feather
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -750,7 +751,8 @@ def handle_df(filenames):
         df['log10basemean'] = np.log10(df['baseMean'])
 
         # Write dataframe to disk
-        df.to_json('temp_data_files/' + session_id)
+        # df.to_json('temp_data_files/' + session_id)
+        feather.write_dataframe(df, 'temp_data_files/' + session_id)
 
         min_transform_padj = 0
         max_transform_padj = df['neg_log10_padj'].max()
@@ -837,7 +839,8 @@ def populate_gene_dropdown(session_id):
         print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
         raise dash.exceptions.PreventUpdate()
     else:
-        df = pd.read_json('temp_data_files/' + session_id)
+        # df = pd.read_json('temp_data_files/' + session_id)
+        df = feather.read_dataframe('temp_data_files/' + session_id)
         dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
         print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
         return dropdown_options
@@ -861,7 +864,8 @@ def subset_data(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = pd.read_json('temp_data_files/' + session_id)
+        # df = pd.read_json('temp_data_files/' + session_id)
+        df = feather.read_dataframe('temp_data_files/' + session_id)
         df = df.rename(index=str, columns={'symbol':'gene_ID'})
         if pvalue_slider_value is not None:
             min_slider = pvalue_slider_value[0]
@@ -876,7 +880,8 @@ def subset_data(
             max_slider = basemean_slider_value[1]
             df = df[df['log10basemean'].between(min_slider, max_slider)]
     print('\tsubset_data elapsed time:', timeit.default_timer() - start_time)
-    df.to_json('temp_data_files/' + session_id + '_subset')
+    # df.to_json('temp_data_files/' + session_id + '_subset')
+    feather.write_dataframe(df, 'temp_data_files/' + session_id + '_subset')
     return None
 
 # Function for generating scatter plots in callbacks below
@@ -1033,7 +1038,8 @@ def plot_volcano(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        # df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        df = feather.read_dataframe('temp_data_files/' + session_id + '_subset')
         figure = generate_scatter(
             df=df,
             dropdown_value_gene_list=dropdown_value_gene_list,
@@ -1062,7 +1068,7 @@ def plot_ma(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        df = feather.read_dataframe('temp_data_files/' + session_id + '_subset')
         figure = generate_scatter(
             df=df,
             dropdown_value_gene_list=dropdown_value_gene_list,
@@ -1091,7 +1097,7 @@ def plot_maxvolc(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = pd.read_json('temp_data_files/' + session_id + '_subset')
+        df = feather.read_dataframe('temp_data_files/' + session_id + '_subset')
         figure = generate_scatter(
             df=df,
             dropdown_value_gene_list=dropdown_value_gene_list,
@@ -1136,7 +1142,7 @@ def populate_tables(session_id, dropdown_value_gene_list):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = pd.read_json('temp_data_files/' + session_id)
+        df = feather.read_dataframe('temp_data_files/' + session_id)
 
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
@@ -1255,7 +1261,7 @@ def gene_click_actions(
 )
 def display_gene_markdown(gene_dropdown_list, organism_type, session_id):
     if len(gene_dropdown_list) != 0:
-        df = pd.read_json('temp_data_files/' + session_id)
+        df = feather.read_dataframe('temp_data_files/' + session_id)
         markdown = generate_gene_info(gene_name=gene_dropdown_list[-1], df=df, organism_type=organism_type)
     else:
         markdown = generate_gene_info('default')
@@ -1265,5 +1271,6 @@ if __name__ == '__main__':
     # app.run_server()
     # app.run_server(debug=True, dev_tools_ui=True, threaded=False, processes=4)
     # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
+    # app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
+    app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
     
