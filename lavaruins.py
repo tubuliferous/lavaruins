@@ -18,6 +18,25 @@ import dash_collapsible_tree
 # import dash_extendable_graph as deg
 import timeit
 import feather
+import traceback
+import threading
+
+# Run process every 10 seconds to prevent timeout (hopefully)
+def every(delay, task):
+  next_time = time.time() + delay
+  while True:
+    time.sleep(max(0, next_time - time.time()))
+    try:
+      task()
+    except Exception:
+      traceback.print_exc()
+      # in production code you might want to have this instead of course:
+      # logger.exception("Problem while executing repetitive task.")
+    # skip tasks if we are behind schedule:
+    next_time += (time.time() - next_time) // delay * delay + delay
+def foo():
+  print("foo", time.time())
+threading.Thread(target=lambda: every(10, foo)).start()
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -1275,6 +1294,5 @@ if __name__ == '__main__':
     # app.run_server()
     # app.run_server(debug=True, dev_tools_ui=True, threaded=False, processes=4)
     # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    # app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
-    app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    
+    # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
+    app.run_server(threaded=True)
