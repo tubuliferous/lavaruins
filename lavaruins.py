@@ -1282,8 +1282,6 @@ def display_gene_markdown(gene_dropdown_list, organism_type, session_id):
     return markdown
 
 if __name__ == '__main__':
-    # app.run_server()
-    # app.run_server(debug=True, dev_tools_ui=True, threaded=False, processes=4)
+    # app.run_server(threaded=True)
     # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    app.run_server(threaded=True)
+    app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
