@@ -1,1 +1,1 @@
-web: gunicorn -w 4 --preload lavaruins:server
+web: gunicorn lavaruins:server

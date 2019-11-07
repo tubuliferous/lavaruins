@@ -6,7 +6,7 @@ from dash.dependencies import Input, Output, State
 import numpy as np
 from textwrap import dedent
 import pandas as pd
-import dash_auth
+# import dash_auth
 import uuid
 import json
 import dash_resumable_upload
@@ -18,25 +18,6 @@ import dash_collapsible_tree
 # import dash_extendable_graph as deg
 import timeit
 import feather
-import traceback
-import threading
-
-# Run process every 10 seconds to prevent timeout (hopefully)
-def every(delay, task):
-  next_time = time.time() + delay
-  while True:
-    time.sleep(max(0, next_time - time.time()))
-    try:
-      task()
-    except Exception:
-      traceback.print_exc()
-      # in production code you might want to have this instead of course:
-      # logger.exception("Problem while executing repetitive task.")
-    # skip tasks if we are behind schedule:
-    next_time += (time.time() - next_time) // delay * delay + delay
-def foo():
-  print("foo", time.time())
-threading.Thread(target=lambda: every(10, foo)).start()
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -45,9 +26,13 @@ pd.set_option('display.max_columns', 500)
 app = dash.Dash(__name__)
 app.scripts.config.serve_locally = True
 
+# !! BasicAuth causes a Safari "Failed to load resource: the server responded
+#       with a status of 403 (FORBIDDEN)" error after serveral seconds disable
+#       authorization until this bug can be fixed 
 # Authentication
-USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
-auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
+# USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
+# auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
+
 server = app.server
 dash_resumable_upload.decorate_server(server, 'uploads')
 
@@ -512,7 +497,7 @@ def serve_layout(tab_plots=[], tab_tables=[]):
             html.Div(id='volcano-plot-timediv', style={'display':'none'}),
             html.Div(id='ma-plot-timediv', style={'display':'none'}),
             html.Div(id='maxvolc-plot-timediv', style={'display':'none'}),
-            # Hidden sink for subset_data callback
+            # Hidden div for subset_data callback
             html.Div(id='data-subset-sink', style={'display':'none'}),
             # App title header
             html.A(children=[
@@ -792,6 +777,12 @@ def handle_df(filenames):
                 max_transform_basemean,
                 get_spaced_marks(min_transform_basemean, max_transform_basemean),
         )
+
+# # Run callback 
+# @app.callback(Output('prevent-timeout-sink', 'children'), [Input('prevent-timeout-interval', 'n_intervals')])
+# def prevent_timeout(n_intervals):
+#     print('prevent_timeout run')
+#     return(n_intervals)
 
 # Relies on <measurement>-<component> naming consistency in layout
 def slider_setup(measurement_name):
