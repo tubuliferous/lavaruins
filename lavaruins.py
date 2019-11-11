@@ -19,6 +19,9 @@ import dash_collapsible_tree
 import timeit
 import feather
 
+
+
+
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
 
@@ -298,8 +301,8 @@ def generate_gene_info(gene_name='default', df=None, organism_type=None):
             return [human_details]
 
 # Probably want to rename this
-def generate_collapsible_tree():
-    dash_collapsible_tree_test_data = {
+def generate_collapsible_tree(tree_data=None, id='dash-collapsible-tree'):
+    test_tree_data = {
        'label': 'search me',
        'value': 'searchme',
        'children': [
@@ -316,8 +319,11 @@ def generate_collapsible_tree():
        ],
      }
 
+    if tree_data == None:
+        tree_data = test_tree_data
+
     return html.Div([
-        dash_collapsible_tree.DashCollapsibleTree(id='dash-collapsible-tree', data=dash_collapsible_tree_test_data)
+        dash_collapsible_tree.DashCollapsibleTree(id=id, data=tree_data)
     ])
 
 def slider_layout(slider_id, input_min_id, input_max_id, submit_button_id, reset_button_id):
@@ -556,16 +562,13 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                                 open=False),
                             html.Hr(style={'margin':'0px'}),
 
-                            # !! Implement GO Filtering!
+                            # # !! Implement GO Filtering!
                             # html.Details([
                             #     html.Summary('Filter on GO Terms'),
                             #     html.Div([
-                            #         generate_collapsible_tree(),
-                            #         # dcc.Dropdown(
-                            #         # id='gene-dropdown',
-                            #         # multi=True,),
+                            #         generate_collapsible_tree(id='go-tree'),
                             #         ]
-                            #         )],
+                            #     )],
                             #     style=left_panel_details_style,
                             #     open=False),
                             # html.Hr(style={'margin':'0px'}),
@@ -639,6 +642,8 @@ def serve_layout(tab_plots=[], tab_tables=[]):
                 children=tab_tables,
                 style=tabs_styles
             ),
+            # Test collapsible GO tree menu
+            generate_collapsible_tree(id='go-tree')
         ]
     )
 
