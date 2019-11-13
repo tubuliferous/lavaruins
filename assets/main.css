@@ -397,6 +397,9 @@ on small devices, paste the mobile query code up in the buttons section and styl
 there.
 */
 
+.react-dropdown-tree-select label {
+  display: inline;
+}
 
 /* Larger than mobile */
 @media (min-width: 400px) {}
