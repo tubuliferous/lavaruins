@@ -13,7 +13,7 @@ import timeit
 import feather
 import lavastuff
 
-files = lavastuff.LocalFiles(uploads_dir='uploads', 
+files = lavastuff.LocalFiles(uploads_dir='uploads',
                              temp_dir='temp_data_files',
                              resources_dir='resources')
 convert = lavastuff.NumericalConverters()
@@ -29,7 +29,7 @@ app.scripts.config.serve_locally = True
 
 # !! BasicAuth causes a Safari "Failed to load resource: the server responded
 #       with a status of 403 (FORBIDDEN)" error after serveral seconds disable
-#       authorization until this bug can be fixed 
+#       authorization until this bug can be fixed
 # Authentication
 # USERNAME_PASSWORD_PAIRS = [['weaverlab', 'lava']]
 # auth = dash_auth.BasicAuth(app, USERNAME_PASSWORD_PAIRS)
@@ -51,14 +51,12 @@ def parse_file_contents(filename):
             df = pd.read_csv('uploads/' + filename, sep='\t')
         return df
     except Exception as e:
-        print(e)    
+        print(e)
 
-tab_plot_volcano = generate.tab_plot('Volcano Plot', 'volcano-plot', type='2D')
-tab_plot_ma = generate.tab_plot('MA Plot', 'ma-plot', type='2D')
-tab_plot_mavolc = generate.tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D')
-tab_plot_settings = generate.tab_plot('Plot Settings',
-                                      'settings-plot',
-                                      type='settings')
+tab_plot_volcano  = generate.tab_plot('Volcano Plot', 'volcano-plot', type='2D')
+tab_plot_ma       = generate.tab_plot('MA Plot', 'ma-plot', type='2D')
+tab_plot_mavolc   = generate.tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D')
+tab_plot_settings = generate.tab_plot('Plot Settings', 'settings-plot',type='settings')
 tab_table_all= generate.tab_table('All Genes', 'all-genes-table')
 tab_table_highlighted= generate.tab_table('Highlighted Genes',
                                           'highlighted-genes-table',
@@ -145,7 +143,7 @@ def handle_df(filenames):
             'gene_dropdown_value_list': []
         }
 
-        files.write_global_vars(global_vars, session_id) 
+        files.write_global_vars(global_vars, session_id)
 
         # Calculating these values upfront sidesteps weird bug where np.log functions
         # return positively or negatively infinite output values for input values between
@@ -160,8 +158,6 @@ def handle_df(filenames):
         df['neg_log10_padj'] = -np.log10(df['padj'])
         df['log10basemean'] = np.log10(df['baseMean'])
 
-        # Write dataframe to disk
-        # df.to_json('temp_data_files/' + session_id)
         feather.write_dataframe(df, 'temp_data_files/' + session_id)
 
         min_transform_padj = 0
@@ -176,22 +172,22 @@ def handle_df(filenames):
         return(session_id,
                 min_transform_padj,
                 max_transform_padj,
-                calculate.spaced_marks(min_transform_padj, 
+                calculate.spaced_marks(min_transform_padj,
                                  max_transform_padj),
                 min_transform_foldchange,
                 max_transform_foldchange,
-                calculate.spaced_marks(min_transform_foldchange, 
+                calculate.spaced_marks(min_transform_foldchange,
                                  max_transform_foldchange),
                 min_transform_basemean,
                 max_transform_basemean,
-                calculate.spaced_marks(min_transform_basemean, 
+                calculate.spaced_marks(min_transform_basemean,
                                  max_transform_basemean))
 
 # Relies on <measurement>-<component> naming consistency in layout
 def slider_setup(measurement_name):
     @app.callback(
             Output(measurement_name + '-slider', 'value'),
-        [   
+        [ 
             Input('session-id', 'children'),
             Input(measurement_name + '-submit-button', 'n_clicks'),
             Input(measurement_name + '-reset-button', 'n_clicks'),
@@ -247,7 +243,6 @@ def populate_gene_dropdown(session_id):
         print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
         raise dash.exceptions.PreventUpdate()
     else:
-        # df = pd.read_json('temp_data_files/' + session_id)
         df = feather.read_dataframe('temp_data_files/' + session_id)
         dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
         print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
@@ -272,7 +267,6 @@ def subset_data(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        # df = pd.read_json('temp_data_files/' + session_id)
         df = feather.read_dataframe('temp_data_files/' + session_id)
         df = df.rename(index=str, columns={'symbol':'gene_ID'})
         if pvalue_slider_value is not None:
@@ -315,7 +309,7 @@ def plot_volcano(
             settings_rendering_radio_value=settings_rendering_radio_value,
             plot_title='Significance vs. Effect Size',
             x_colname='log2FoldChange',
-            x_axis_title={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'}, 
+            x_axis_title={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'},
             y_colname='neg_log10_padj',
             y_axis_title={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'})
     return figure
@@ -335,7 +329,7 @@ def plot_ma(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = feather.read_dataframe(files.temp_dir + '/' + 
+        df = feather.read_dataframe(files.temp_dir + '/' +
                                     session_id + '_subset')
         figure = generate.scatter(
             df=df,
@@ -343,7 +337,7 @@ def plot_ma(
             settings_rendering_radio_value=settings_rendering_radio_value,
             plot_title='Log Ratio (M) vs. Mean Average (A)',
             x_colname='log10basemean',
-            x_axis_title={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'}, 
+            x_axis_title={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'},
             y_colname='log2FoldChange',
             y_axis_title={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'})
     return figure
@@ -363,7 +357,7 @@ def plot_maxvolc(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        df = feather.read_dataframe(files.temp_dir + '/' + 
+        df = feather.read_dataframe(files.temp_dir + '/' +
                                     session_id + '_subset')
         figure = generate.scatter(
             df=df,
@@ -371,7 +365,7 @@ def plot_maxvolc(
             settings_rendering_radio_value=settings_rendering_radio_value,
             plot_title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
             x_colname='log10basemean',
-            x_axis_title=dict(title='A'), 
+            x_axis_title=dict(title='A'),
             y_colname='log2FoldChange',
             y_axis_title=dict(title='M'),
             z_colname='neg_log10_padj',
@@ -423,7 +417,8 @@ def populate_tables(session_id, dropdown_value_gene_list):
             pd.DataFrame().to_csv(highlighted_relative_filename)
         else:
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
-            highlighted_genes_table_columns = [{'name': i, 'id': i} for i in dropdown_slice_df.columns]
+            highlighted_genes_table_columns = [{'name': i, 'id': i}
+                                               for i in dropdown_slice_df.columns]
             highlighted_genes_table_data = dropdown_slice_df.to_dict('rows')
             # For downloads
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
@@ -488,9 +483,9 @@ def gene_click_actions(
 
         plot_timestamp_dict = {'volcano-plot':
                                     convert.string_to_int(volcano_plot_timediv),
-                               'ma-plot': 
+                               'ma-plot':
                                     convert.string_to_int(ma_plot_timediv),
-                               'maxvolc-plot': 
+                               'maxvolc-plot':
                                     convert.string_to_int(mavolc_plot_timediv)}
 
         # Get the last-clicked plot by largest timestamp
@@ -510,10 +505,10 @@ def gene_click_actions(
             clicked_gene = clickdata['points'][0]['text']
             if clicked_gene not in current_gene_dropdown_list:
                 updated_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
-    
+
             # Write the new dropdown gene list back to the global variables file
             global_vars['gene_dropdown_value_list'] = updated_gene_dropdown_list
-            files.write_global_vars(global_vars, session_id) 
+            files.write_global_vars(global_vars, session_id)
 
             print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
             return updated_gene_dropdown_list
@@ -530,8 +525,8 @@ def gene_click_actions(
 def setup_gene_markdown(gene_dropdown_list, organism_type, session_id):
     if len(gene_dropdown_list) != 0:
         df = feather.read_dataframe('temp_data_files/' + session_id)
-        markdown = generate.gene_info(gene_name=gene_dropdown_list[-1], 
-                                      df=df, 
+        markdown = generate.gene_info(gene_name=gene_dropdown_list[-1],
+                                      df=df,
                                       organism_type=organism_type,
                                       files=files)
     else:
