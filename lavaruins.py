@@ -66,6 +66,10 @@ app.layout = generate.main_layout(
     [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings],
     [tab_table_all, tab_table_highlighted])
 
+# app.layout = generate.main_layout(
+#     [tab_plot_volcano, tab_plot_settings],
+#     [tab_table_all, tab_table_highlighted])
+
 @app.callback(
     Output('organism-div', 'children'),
     [Input('session-id', 'children')],
@@ -92,6 +96,8 @@ def set_organism_type(session_id, organism_type):
         Output('basemean-slider', 'min'),
         Output('basemean-slider', 'max'),
         Output('basemean-slider', 'marks'),
+        Output('basemean-slider-div', 'style'),
+        Output('file-type', 'children')
     ],
     [
         Input('upload-data', 'fileNames'),
@@ -99,19 +105,40 @@ def set_organism_type(session_id, organism_type):
 def handle_df(filenames):
     print('-> Triggered "handle_df"')
     start_time = timeit.default_timer()
-    # Need to put session ID here (I suspect) so that there is a
-    # change that will trigger the other callbacks
+
     if filenames is None:
          raise dash.exceptions.PreventUpdate()
     else:
+        # Set initial output values to None in order to have output 
+        # values in case these values aren't set by the incoming file
+        min_transform_padj = None
+        max_transform_padj = None
+        min_transform_foldchange = None
+        max_transform_foldchange = None
+        min_transform_basemean = None
+        max_transform_basemean = None
+        # For toggling visibility of slider conditional on 
+        # type of file input (i.e. presence of cluster column)
+        basemean_slider_style = {}
+
+
         session_id = str(uuid.uuid4())
         print('session_id: ' + session_id)
         # Only look at the last uploaded file if multiple are dropped on LavaRuins
         filename = filenames[-1]
         df = parse_file_contents(filename)
 
-        # Handle alternative gene name column
+        # Handle alternative column names sometimes seen in bulkseq files
         df.rename(index=str, columns={'symbol':'gene_ID'}, inplace=True)
+
+        # Handle alternative column names found in scRNAseq files
+        df.rename(index=str, 
+            columns={
+                'p_val':'pvalue',
+                'p_val_adj':'padj',
+                'avg_logFC':'log2FoldChange',
+                'gene':'gene_ID'}, 
+            inplace=True)
 
         # Reorder column names to prefered order
         standard_colnames = [
@@ -131,9 +158,7 @@ def handle_df(filenames):
         present_colnames = df.columns.tolist()
         standard_colnames_found = list(set(present_colnames).intersection(standard_colnames))
         other_colnames = list(set(standard_colnames_found) - set(standard_colnames))
-
         reorderd_colnames = standard_colnames_found + other_colnames
-
         df = df[reorderd_colnames]
 
         global_vars = {
@@ -142,6 +167,13 @@ def handle_df(filenames):
             'basemean_reset_click_count':None,
             'gene_dropdown_value_list': []
         }
+
+        if 'cluster' in present_colnames:
+            file_type = 'sc'
+            basemean_slider_style = {'display':'none'}
+        else:
+            file_type = 'bulk'
+
 
         files.write_global_vars(global_vars, session_id)
 
@@ -152,11 +184,17 @@ def handle_df(filenames):
         smallest_float = 1.00E-307
         df.loc[df['padj']==0, 'padj'] = smallest_float
         # !!Hack: Remove values with baseMean of 0
-        df = df[df['baseMean']!=0]
+        try:
+            df = df[df['baseMean']!=0]
+        except:
+            pass
 
         # Add log transformed columns
         df['neg_log10_padj'] = -np.log10(df['padj'])
-        df['log10basemean'] = np.log10(df['baseMean'])
+        try:
+            df['log10basemean'] = np.log10(df['baseMean'])
+        except:
+            pass
 
         feather.write_dataframe(df, 'temp_data_files/' + session_id)
 
@@ -164,10 +202,16 @@ def handle_df(filenames):
         max_transform_padj = df['neg_log10_padj'].max()
         min_transform_foldchange = df['log2FoldChange'].min()
         max_transform_foldchange = df['log2FoldChange'].max()
-        min_transform_basemean = df['log10basemean'].min()
-        max_transform_basemean = df['log10basemean'].max()
+        try:
+            min_transform_basemean = df['log10basemean'].min()
+            max_transform_basemean = df['log10basemean'].max()
+        except:
+            pass
 
         print('\thandle_df elapsed time:', timeit.default_timer() - start_time)
+
+        # Determine plots in the layout by uploaded file type
+        print(file_type)
 
         return(session_id,
                 min_transform_padj,
@@ -181,7 +225,10 @@ def handle_df(filenames):
                 min_transform_basemean,
                 max_transform_basemean,
                 calculate.spaced_marks(min_transform_basemean,
-                                 max_transform_basemean))
+                                 max_transform_basemean),
+                basemean_slider_style,
+                file_type)
+
 
 # Relies on <measurement>-<component> naming consistency in layout
 def slider_setup(measurement_name):
@@ -280,97 +327,121 @@ def subset_data(
         if basemean_slider_value is not None:
             min_slider = basemean_slider_value[0]
             max_slider = basemean_slider_value[1]
-            df = df[df['log10basemean'].between(min_slider, max_slider)]
+            # Handle exception for scRNAseq data case where no basemean
+            try:
+                df = df[df['log10basemean'].between(min_slider, max_slider)]
+            except:
+                pass
     print('\tsubset_data elapsed time:', timeit.default_timer() - start_time)
     # df.to_json('temp_data_files/' + session_id + '_subset')
     feather.write_dataframe(df, 'temp_data_files/' + session_id + '_subset')
     return None
 
 # Generate volcano plot from imported RNAseq subset
-@app.callback(
-    Output('volcano-plot', 'figure'),
-    [Input('session-id', 'children'),
-     Input('settings-rendering-radio', 'value'),
-     Input('gene-dropdown', 'value'),
-     Input('data-subset-sink', 'children')])
-def plot_volcano(
-    session_id,
-    settings_rendering_radio_value,
-    dropdown_value_gene_list,
-    data_sink):
+def volc():
+    @app.callback(
+        Output('volcano-plot', 'figure'),
+        [Input('session-id', 'children'),
+         Input('settings-rendering-radio', 'value'),
+         Input('gene-dropdown', 'value'),
+         Input('data-subset-sink', 'children'),
+         Input('file-type', 'children')])
+    def plot_volcano(
+        session_id,
+        settings_rendering_radio_value,
+        dropdown_value_gene_list,
+        data_sink,
+        file_type):
 
-    if session_id is None:
-        raise dash.exceptions.PreventUpdate()
-    else:
-        df = feather.read_dataframe('temp_data_files/' + session_id + '_subset')
-        figure = generate.scatter(
-            df=df,
-            dropdown_value_gene_list=dropdown_value_gene_list,
-            settings_rendering_radio_value=settings_rendering_radio_value,
-            plot_title='Significance vs. Effect Size',
-            x_colname='log2FoldChange',
-            x_axis_title={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'},
-            y_colname='neg_log10_padj',
-            y_axis_title={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'})
-    return figure
+        if session_id is None:
+            raise dash.exceptions.PreventUpdate()
+        else:
+            df = feather.read_dataframe('temp_data_files/' + session_id + '_subset')
+            figure = generate.scatter(
+                df=df,
+                dropdown_value_gene_list=dropdown_value_gene_list,
+                settings_rendering_radio_value=settings_rendering_radio_value,
+                plot_title='Significance vs. Effect Size',
+                x_colname='log2FoldChange',
+                x_axis_title={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'},
+                y_colname='neg_log10_padj',
+                y_axis_title={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'})
+        return figure
+volc()
 
 # Generate MA plot from imported RNAseq subset
-@app.callback(
-    Output('ma-plot', 'figure'),
-    [Input('session-id', 'children'),
-     Input('settings-rendering-radio', 'value'),
-     Input('gene-dropdown', 'value'),
-     Input('data-subset-sink', 'children')])
-def plot_ma(
-    session_id,
-    settings_rendering_radio_value,
-    dropdown_value_gene_list,
-    data_sink):
-    if session_id is None:
-        raise dash.exceptions.PreventUpdate()
-    else:
-        df = feather.read_dataframe(files.temp_dir + '/' +
-                                    session_id + '_subset')
-        figure = generate.scatter(
-            df=df,
-            dropdown_value_gene_list=dropdown_value_gene_list,
-            settings_rendering_radio_value=settings_rendering_radio_value,
-            plot_title='Log Ratio (M) vs. Mean Average (A)',
-            x_colname='log10basemean',
-            x_axis_title={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'},
-            y_colname='log2FoldChange',
-            y_axis_title={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'})
-    return figure
+def ma():
+    @app.callback(
+        Output('ma-plot', 'figure'),
+        [Input('session-id', 'children'),
+         Input('settings-rendering-radio', 'value'),
+         Input('gene-dropdown', 'value'),
+         Input('data-subset-sink', 'children'),
+         Input('file-type', 'children')])
+    def plot_ma(
+        session_id,
+        settings_rendering_radio_value,
+        dropdown_value_gene_list,
+        data_sink,
+        file_type):
+        if session_id is None:
+            raise dash.exceptions.PreventUpdate()
+        else:
+            if file_type == 'bulk':
+                df = feather.read_dataframe(files.temp_dir + '/' +
+                                            session_id + '_subset')
+                figure = generate.scatter(
+                    df=df,
+                    dropdown_value_gene_list=dropdown_value_gene_list,
+                    settings_rendering_radio_value=settings_rendering_radio_value,
+                    plot_title='Log Ratio (M) vs. Mean Average (A)',
+                    x_colname='log10basemean',
+                    x_axis_title={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'},
+                    y_colname='log2FoldChange',
+                    y_axis_title={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'})
+            else:
+                figure = {}
+        return figure
+ma()
 
 # Generate MAxVolc plot from imported RNAseq subset
-@app.callback(
-    Output('maxvolc-plot', 'figure'),
-    [Input('session-id', 'children'),
-     Input('settings-rendering-radio', 'value'),
-     Input('gene-dropdown', 'value'),
-     Input('data-subset-sink', 'children')])
-def plot_maxvolc(
-    session_id,
-    settings_rendering_radio_value,
-    dropdown_value_gene_list,
-    data):
-    if session_id is None:
-        raise dash.exceptions.PreventUpdate()
-    else:
-        df = feather.read_dataframe(files.temp_dir + '/' +
-                                    session_id + '_subset')
-        figure = generate.scatter(
-            df=df,
-            dropdown_value_gene_list=dropdown_value_gene_list,
-            settings_rendering_radio_value=settings_rendering_radio_value,
-            plot_title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
-            x_colname='log10basemean',
-            x_axis_title=dict(title='A'),
-            y_colname='log2FoldChange',
-            y_axis_title=dict(title='M'),
-            z_colname='neg_log10_padj',
-            z_axis_title=dict(title='Significance'))
-    return figure
+def maxvolc():
+    @app.callback(
+        Output('maxvolc-plot', 'figure'),
+        [Input('session-id', 'children'),
+         Input('settings-rendering-radio', 'value'),
+         Input('gene-dropdown', 'value'),
+         Input('data-subset-sink', 'children'),
+         Input('file-type', 'children')])
+    def plot_maxvolc(
+        session_id,
+        settings_rendering_radio_value,
+        dropdown_value_gene_list,
+        data,
+        file_type):
+        print('plot_maxvolc() triggered')
+        if session_id is None:
+            raise dash.exceptions.PreventUpdate()
+        else:
+            if file_type == 'bulk':
+                df = feather.read_dataframe(files.temp_dir + '/' +
+                                            session_id + '_subset')
+                figure = generate.scatter(
+                    df=df,
+                    dropdown_value_gene_list=dropdown_value_gene_list,
+                    settings_rendering_radio_value=settings_rendering_radio_value,
+                    plot_title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
+                    x_colname='log10basemean',
+                    x_axis_title=dict(title='A'),
+                    y_colname='log2FoldChange',
+                    y_axis_title=dict(title='M'),
+                    z_colname='neg_log10_padj',
+                    z_axis_title=dict(title='Significance')) 
+            else:
+                figure = {}
+            return figure
+
+maxvolc()
 
 # For downloading tables
 #   - https://github.com/plotly/dash-recipes/blob/master/dash-download-file-link-server.py
@@ -460,7 +531,8 @@ def reset_clickdata(session_id):
     [Input('session-id', 'children')] +
     [Input('organism-div', 'children')] +
     [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
-    [Input(plot_id, 'clickData') for plot_id in plot_id_list])
+    [Input(plot_id, 'clickData') for plot_id in plot_id_list],
+    [State('file-type', 'children')])
 def gene_click_actions(
     session_id,
     organism_type,
@@ -469,7 +541,8 @@ def gene_click_actions(
     mavolc_plot_timediv,
     volcano_clickdata,
     ma_clickdata,
-    mavolc_clickdata):
+    mavolc_clickdata,
+    file_type):
 
     print('-> Triggered "gene_click_actions"')
     start_time = timeit.default_timer()
@@ -521,14 +594,16 @@ def gene_click_actions(
     Output('gene-info-markdown', 'children'),
     [Input('gene-dropdown', 'value'),
      Input('organism-select', 'value')],
-    [State('session-id', 'children')])
-def setup_gene_markdown(gene_dropdown_list, organism_type, session_id):
+    [State('session-id', 'children'),
+     State('file-type', 'children')])
+def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type):
     if len(gene_dropdown_list) != 0:
         df = feather.read_dataframe('temp_data_files/' + session_id)
         markdown = generate.gene_info(gene_name=gene_dropdown_list[-1],
                                       df=df,
                                       organism_type=organism_type,
-                                      files=files)
+                                      files=files,
+                                      file_type=file_type)
     else:
         markdown = generate.gene_info('default')
     return markdown

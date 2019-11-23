@@ -93,19 +93,22 @@ class PlotCalculations:
 
     # Generate marks sequences for sliders
     def spaced_marks(self, min_mark, max_mark):
-        seq = np.linspace(min_mark, max_mark, 4).tolist()
-        if max_mark not in seq:
-            # remove old maximum value if too close to the high end of the slider
-            if (max_mark - max(seq)) < (0.5*(seq[2] - seq[1])):
-                seq.pop()
-            seq.append(max_mark)
-        if min_mark not in seq:
-            # remove old minimum value if too close to the low end of the slider
-            if (min_mark - seq[0]) < (0.5*(seq[2] - seq[1])):
-                seq.pop(0)
-            seq.insert(int(0), min_mark)
-        # Fix for 0 label not shown on slider mark
-        marks={int(i) if i % 1 == 0 else i:'{:.0f}'.format(i) for i in seq}
+        if min_mark == None or max_mark == None:
+            marks = {}
+        else:
+            seq = np.linspace(min_mark, max_mark, 4).tolist()
+            if max_mark not in seq:
+                # remove old maximum value if too close to the high end of the slider
+                if (max_mark - max(seq)) < (0.5*(seq[2] - seq[1])):
+                    seq.pop()
+                seq.append(max_mark)
+            if min_mark not in seq:
+                # remove old minimum value if too close to the low end of the slider
+                if (min_mark - seq[0]) < (0.5*(seq[2] - seq[1])):
+                    seq.pop(0)
+                seq.insert(int(0), min_mark)
+            # Fix for 0 label not shown on slider mark
+            marks={int(i) if i % 1 == 0 else i:'{:.0f}'.format(i) for i in seq}
         return marks
 
 class InterfaceGenerators:
@@ -127,6 +130,8 @@ class InterfaceGenerators:
             children=[
                 # Hidden Div to store session
                 html.Div(id='session-id', style={'display':'none'}),
+                # Hidden Div to store file type
+                html.Div(id='file-type', style={'display':'none'}),
                 # Hidden Div as store for organism type
                 html.Div(id='organism-div', style={'display':'none'}),
                 # Store timestamps of plot clicks help determine last plot clicked
@@ -238,20 +243,26 @@ class InterfaceGenerators:
                                 html.Hr(style={'margin':'0px'}),
 
                                 # Log₁₀(basemean) filter sliders and buttons
-                                html.Details(
-                                    [
-                                        html.Summary('Filter on log₁₀(BaseMean)'),
-                                        self.slider_layout(
-                                            slider_id='basemean-slider',
-                                            input_min_id='basemean-textbox-min',
-                                            input_max_id='basemean-textbox-max',
-                                            submit_button_id = 'basemean-submit-button',
-                                            reset_button_id='basemean-reset-button'),
-                                    ],
-                                    open=False,
-                                    style=left_panel_details_style),
-                                html.Hr(style={'margin':'0px'}),
+                                html.Div([
+                                    html.Details(
+                                        [
+                                            html.Summary('Filter on log₁₀(BaseMean)'),
+                                            self.slider_layout(
+                                                slider_id='basemean-slider',
+                                                input_min_id='basemean-textbox-min',
+                                                input_max_id='basemean-textbox-max',
+                                                submit_button_id = 'basemean-submit-button',
+                                                reset_button_id='basemean-reset-button'),
+                                        ],
+                                        open=False,
+                                        style=left_panel_details_style),
+                                    html.Hr(style={'margin':'0px'}),
+                                    # Turn off initial visibility of the basemean slider
+                                    # because it might not be relevant depending on 
+                                    # uploaded data file 
+                                ], id='basemean-slider-div')
                             ],
+
                             style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
                         ),
 
@@ -263,7 +274,9 @@ class InterfaceGenerators:
                                     children=tab_plots,
                                     style=tabs_styles,
                                 ),
-                            ], style={'width':'60%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
+                            ], 
+                            # style={'width':'60%', 'display':'none', 'vertical-align':'top', 'padding-top':'0px'},
+                            style={'width':'60%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
                         ),
                         html.Div(id='gene-info-markdown', style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'35px'})
                     ],
@@ -316,7 +329,8 @@ class InterfaceGenerators:
     def gene_info(self,
                   gene_name='default',
                   df=None,organism_type=None,
-                  files=None): 
+                  files=None,
+                  file_type=None): 
         if gene_name == 'default':
             default_text = html.P(children = 
                                 html.H5('Click on plotted gene for information'),
@@ -325,7 +339,12 @@ class InterfaceGenerators:
         else:
             neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
             log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
-            log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
+            # This is necessary for scRNA files that lack basemean scores
+            if file_type == 'bulk':
+                log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
+                basemean_string = '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean)
+            if file_type == 'sc':
+                basemean_string = '\n\n**log₁₀(base mean):** NA'
 
             #!! Use this as the basis for switching organisms for homolog lookups
             if organism_type == 'mouse':
@@ -402,7 +421,8 @@ class InterfaceGenerators:
                     '\n\n**Gene Name**: *{}*'.format(gene_name) +
                     '\n\n**Synonyms:** *{}*'.format(synonyms) +
                     '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) +
-                    '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
+                    # '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
+                    basemean_string + 
                     '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
                     '\n\n**Location:** {}'.format(location) +
                     '\n\n**Functional Name:** {}'.format(function_name)))
@@ -474,8 +494,7 @@ class InterfaceGenerators:
 
                 try:
                     hgnc_number = hgnc_id.split(':')[1]
-                    hgnc_link = 'https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/' + \
-                                 hgnc_number
+                    hgnc_link = 'https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/' + hgnc_number
                 except:
                     hgnc_link ='NA'
 
@@ -498,7 +517,8 @@ class InterfaceGenerators:
                     '\n\n**Gene Name**: *{}*'.format(gene_name) +
                     '\n\n**Synonyms:** *{}*'.format(synonyms) +
                     '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) +
-                    '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
+                    # '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
+                    basemean_string +
                     '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
                     '\n\n**Location:** {}'.format(location) +
                     '\n\n**Functional Name:** {}'.format(function_name) +
@@ -683,7 +703,7 @@ class InterfaceGenerators:
         ])
 
     # Generate plot-containing tab
-    def tab_plot(self, plot_label, plot_id, type):
+    def tab_plot(self, plot_label, plot_id, type, hidden_flag=False):
         # Mode Bar button descriptions:
         #   https://github.com/plotly/plotly.github.io/blob/master/_posts/fundamentals/2015-09-01-getting-to-know-the-plotly-modebar.md
         dim2_button_exceptions = [
