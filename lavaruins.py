@@ -576,15 +576,17 @@ def gene_click_actions(
         # Add gene to dropdown gene menu if clickdata isn't empty
         if clickdata:
             clicked_gene = clickdata['points'][0]['text']
+            print(clicked_gene)
+            print(current_gene_dropdown_list)
             if clicked_gene not in current_gene_dropdown_list:
-                updated_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
+                current_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
 
             # Write the new dropdown gene list back to the global variables file
-            global_vars['gene_dropdown_value_list'] = updated_gene_dropdown_list
+            global_vars['gene_dropdown_value_list'] = current_gene_dropdown_list
             files.write_global_vars(global_vars, session_id)
 
             print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
-            return updated_gene_dropdown_list
+            return current_gene_dropdown_list
         else:
             print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
             return []
