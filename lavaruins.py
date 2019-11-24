@@ -97,6 +97,7 @@ def set_organism_type(session_id, organism_type):
         Output('basemean-slider', 'max'),
         Output('basemean-slider', 'marks'),
         Output('basemean-slider-div', 'style'),
+        Output('cluster-dropdown-div', 'style'),
         Output('file-type', 'children')
     ],
     [
@@ -120,7 +121,7 @@ def handle_df(filenames):
         # For visibility toggles conditioned upon the type
         # of file input (i.e. presence of cluster column)
         basemean_slider_style = {}
-
+        cluster_dropdown_style = {}
 
         session_id = str(uuid.uuid4())
         print('session_id: ' + session_id)
@@ -173,7 +174,7 @@ def handle_df(filenames):
             basemean_slider_style = {'display':'none'}
         else:
             file_type = 'bulk'
-
+            cluster_dropdown_style = {'display':'none'}
 
         files.write_global_vars(global_vars, session_id)
 
@@ -227,6 +228,7 @@ def handle_df(filenames):
                 calculate.spaced_marks(min_transform_basemean,
                                  max_transform_basemean),
                 basemean_slider_style,
+                cluster_dropdown_style,
                 file_type)
 
 # Relies on <measurement>-<component> naming consistency in layout
