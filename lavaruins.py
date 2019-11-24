@@ -117,8 +117,8 @@ def handle_df(filenames):
         max_transform_foldchange = None
         min_transform_basemean = None
         max_transform_basemean = None
-        # For toggling visibility of slider conditional on 
-        # type of file input (i.e. presence of cluster column)
+        # For visibility toggles conditioned upon the type
+        # of file input (i.e. presence of cluster column)
         basemean_slider_style = {}
 
 
@@ -228,7 +228,6 @@ def handle_df(filenames):
                                  max_transform_basemean),
                 basemean_slider_style,
                 file_type)
-
 
 # Relies on <measurement>-<component> naming consistency in layout
 def slider_setup(measurement_name):

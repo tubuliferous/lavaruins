@@ -115,10 +115,162 @@ class InterfaceGenerators:
     def __init__(self):
         pass
 
+    # Template for features on the left LavaRuins interface panel
+    def __panel_feature(self, element_id, details_summary="NA", open_details=False, visibility=True, html_element_list=[]):
+        details_style = {'margin-bottom':'5px','margin-top':'5px'}
+        if visibility == True:
+            div_style = {}
+        else:
+            div_style = {'display':'none'}
+
+        output_html = \
+            html.Div([
+                html.Details(
+                    [html.Summary(details_summary)] + html_element_list, 
+                    open=open_details, 
+                    style=details_style),
+                    html.Hr(style={'margin':'0px'})], 
+                id=element_id,
+                style=div_style)
+        return output_html
+
     # Set up the basic plot layout
     def main_layout(self, tab_plots=[], tab_tables=[]):
-        
-        left_panel_details_style = {'margin-bottom':'5px','margin-top':'5px'}
+
+        # ------------ Left panel features ------------
+        # File upload with organism selection
+        __upload_feature = self.__panel_feature(
+            element_id='upload-feature',
+            details_summary='File Upload',
+            open_details=True,
+            html_element_list = \
+                [
+                    # html.Summary('File Upload'),
+                    dash_resumable_upload.Upload(
+                        id='upload-data',
+                        maxFiles=1,
+                        maxFileSize=1024*1024*1000,  # 100 MB
+                        service='/upload_resumable',
+                        textLabel='Drag and Drop or Click Here to Upload',
+                        startButton=False,
+                        cancelButton=False,
+                        pauseButton=False,
+                        chunkSize=500_000,
+                        defaultStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
+                        activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
+                        completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'}),
+
+                    # Allow selection of organism for populating gene information
+                    html.Summary('Select Organism', style={'margin-top':'5px'}), 
+                    dcc.Dropdown(
+                        id='organism-select',
+                        multi=False,
+                        options=[
+                            {'label':'Mouse', 'value':'mouse'},
+                            {'label':'Human','value':'human'},
+                        ],
+                        value='mouse'
+                    )
+                ])
+                                
+        # SC cluster selection dropdown menu
+        __cluster_feature = self.__panel_feature(
+            element_id='cluster-dropdown-div',
+            details_summary='Cluster',
+            open_details=True,
+            html_element_list = \
+                [ 
+                    # html.Summary('Cluster'),
+                    html.Div([
+                        dcc.Dropdown(
+                        id='cluster-dropdown',
+                        multi=False)])])
+
+        # Gene highlighter dropdown menu
+        __gene_dropdown_feature = self.__panel_feature(
+            element_id='gene-dropdown-div',
+            details_summary='Highlight Genes',
+            html_element_list=\
+                [
+                    html.Div([
+                    dcc.Dropdown(
+                    id='gene-dropdown',
+                    multi=True)])])
+
+        # log₁₀(adjusted p-value) filter sliders and buttons
+        __pvalue_slider_feature = self.__panel_feature(
+            element_id='pvalue-slider-div',
+            details_summary='Filter on Transformed p-value',
+            html_element_list=\
+                [
+                    self.slider_layout(
+                        slider_id='pvalue-slider',
+                        input_min_id='pvalue-textbox-min',
+                        input_max_id='pvalue-textbox-max',
+                        submit_button_id='pvalue-submit-button',
+                        reset_button_id='pvalue-reset-button'),
+                ])
+
+        # Log2(foldchange) filter sliders and buttons
+        __foldchange_slider_feature = self.__panel_feature(
+            element_id='foldchange-slider-div',
+            details_summary='Filter on log₂(FoldChange)',
+            html_element_list=\
+                [
+                    self.slider_layout(
+                        slider_id='foldchange-slider',
+                        input_min_id='foldchange-textbox-min',
+                        input_max_id='foldchange-textbox-max',
+                        submit_button_id='foldchange-submit-button',
+                        reset_button_id='foldchange-reset-button'),
+                ],)
+
+        __basemean_slider_feature = self.__panel_feature(
+            element_id='basemean-slider-div',
+            details_summary='Filter on log₁₀(BaseMean)',
+            html_element_list=\
+                [
+                    self.slider_layout(
+                        slider_id='basemean-slider',
+                        input_min_id='basemean-textbox-min',
+                        input_max_id='basemean-textbox-max',
+                        submit_button_id = 'basemean-submit-button',
+                        reset_button_id='basemean-reset-button'),
+                ])        
+
+        def collapsible_tree(tree_data=None, id='dash-collapsible-tree'):
+            test_tree_data = {
+               'label': 'search me',
+               'value': 'searchme',
+               'children': [
+                 {
+                   'label': 'search me too',
+                   'value': 'searchmetoo',
+                   'children': [
+                     {
+                       'label': 'No one can get me',
+                       'value': 'anonymous',
+                     },
+                   ],
+                 },
+               ],
+             }
+
+            if tree_data == None:
+                tree_data = test_tree_data
+
+            return html.Div([
+                dash_collapsible_tree.DashCollapsibleTree(id=id, data=tree_data)])
+        __collapsible_tree_feature = self.__panel_feature(
+            element_id='go-dropdown-div',
+            details_summary='Filter on GO Terms',
+            # !! Keep invisible for now 
+            visibility=False,
+            html_element_list=\
+                [
+                    collapsible_tree()
+                ])
+        # ------------ /Left panel features ------------
 
         tabs_styles = {
             'height':'38px',
@@ -153,117 +305,31 @@ class InterfaceGenerators:
                     children=[
                         html.Div(
                             children=[
-                                html.Details(
-                                    [
-                                        html.Summary('File Upload'),
-                                        dash_resumable_upload.Upload(
-                                            id='upload-data',
-                                            maxFiles=1,
-                                            maxFileSize=1024*1024*1000,  # 100 MB
-                                            service='/upload_resumable',
-                                            textLabel='Drag and Drop or Click Here to Upload',
-                                            startButton=False,
-                                            cancelButton=False,
-                                            pauseButton=False,
-                                            chunkSize=500_000,
-                                            defaultStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
-                                            activeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block'},
-                                            completeStyle={'color':'black', 'font-size':'1em', 'display':'inline-block', 'overflow-wrap':'break-word'}),
+                                # File upload with organism selection
+                                __upload_feature,
 
-                                        # Allow selection of organism for populating gene information
-                                        html.Summary('Select Organism', style={'margin-top':'5px'}), 
-                                        dcc.Dropdown(
-                                            id='organism-select',
-                                            multi=False,
-                                            options=[
-                                                {'label':'Mouse', 'value':'mouse'},
-                                                {'label':'Human','value':'human'},
-                                            ],
-                                            value='mouse'
-                                        )
-                                    ],
-                                    open=True,
-                                    style=left_panel_details_style),
-                                html.Hr(style={'margin':'0px'}),
+                                # SC cluster selection dropdown menu
+                                __cluster_feature,
 
                                 # Gene highlighter dropdown menu
-                                html.Details([
-                                    html.Summary('Highlight Genes'),
-                                    html.Div([
-                                        dcc.Dropdown(
-                                        id='gene-dropdown',
-                                        multi=True,),])],
-                                    style=left_panel_details_style,
-                                    open=False),
-                                html.Hr(style={'margin':'0px'}),
-
-                                # !! Implement GO Filtering!
-                                # html.Details([
-                                #     html.Summary('Filter on GO Terms'),
-                                #     html.Div([
-                                #         generate_collapsible_tree(),
-                                #         # dcc.Dropdown(
-                                #         # id='gene-dropdown',
-                                #         # multi=True,),
-                                #         ]
-                                #         )],
-                                #     style=left_panel_details_style,
-                                #     open=False),
-                                # html.Hr(style={'margin':'0px'}),
-
+                                __gene_dropdown_feature, 
 
                                 # log₁₀(adjusted p-value) filter sliders and buttons
-                                html.Details(
-                                    [
-                                        html.Summary('Filter on Transformed p-value'),
-                                        self.slider_layout(
-                                            slider_id='pvalue-slider',
-                                            input_min_id='pvalue-textbox-min',
-                                            input_max_id='pvalue-textbox-max',
-                                            submit_button_id='pvalue-submit-button',
-                                            reset_button_id='pvalue-reset-button'),
-                                    ],
-                                    open=False,
-                                    style=left_panel_details_style),
-                                html.Hr(style={'margin':'0px'}),
+                                __pvalue_slider_feature,
 
                                 # Log2(foldchange) filter sliders and buttons
-                                html.Details(
-                                    [
-                                        html.Summary('Filter on log₂(FoldChange)'),
-                                        self.slider_layout(
-                                            slider_id='foldchange-slider',
-                                            input_min_id='foldchange-textbox-min',
-                                            input_max_id='foldchange-textbox-max',
-                                            submit_button_id='foldchange-submit-button',
-                                            reset_button_id='foldchange-reset-button'),
-                                    ],
-                                    open=False,
-                                    style=left_panel_details_style),
-                                html.Hr(style={'margin':'0px'}),
+                                __foldchange_slider_feature,
 
                                 # Log₁₀(basemean) filter sliders and buttons
-                                html.Div([
-                                    html.Details(
-                                        [
-                                            html.Summary('Filter on log₁₀(BaseMean)'),
-                                            self.slider_layout(
-                                                slider_id='basemean-slider',
-                                                input_min_id='basemean-textbox-min',
-                                                input_max_id='basemean-textbox-max',
-                                                submit_button_id = 'basemean-submit-button',
-                                                reset_button_id='basemean-reset-button'),
-                                        ],
-                                        open=False,
-                                        style=left_panel_details_style),
-                                    html.Hr(style={'margin':'0px'}),
-                                    # Turn off initial visibility of the basemean slider
-                                    # because it might not be relevant depending on 
-                                    # uploaded data file 
-                                ], id='basemean-slider-div')
-                            ],
+                                __basemean_slider_feature,
 
-                            style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
+                                # GO Tree filter menu 
+                                __collapsible_tree_feature],
+
+                            style={'width':'20%', 
+                                   'display':'inline-block', 
+                                   'vertical-align':'top', 
+                                   'padding-top':'0px'},
                         ),
 
                         # Tab-accessed plots in the center of the layout
@@ -275,10 +341,16 @@ class InterfaceGenerators:
                                     style=tabs_styles,
                                 ),
                             ], 
-                            # style={'width':'60%', 'display':'none', 'vertical-align':'top', 'padding-top':'0px'},
-                            style={'width':'60%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'0px'},
+                            style={'width':'60%',
+                                   'display':'inline-block',
+                                   'vertical-align':'top',
+                                   'padding-top':'0px'},
                         ),
-                        html.Div(id='gene-info-markdown', style={'width':'20%', 'display':'inline-block', 'vertical-align':'top', 'padding-top':'35px'})
+                        html.Div(id='gene-info-markdown',
+                                 style={'width':'20%',
+                                        'display':'inline-block',
+                                        'vertical-align':'top',
+                                        'padding-top':'35px'})
                     ],
                     style={'margin-bottom':'10px'}
                 ),
@@ -557,7 +629,7 @@ class InterfaceGenerators:
 
         marker_settings_2d = {
             'color':'black',
-            'size':8,
+            'size':6,
             'opacity':0.5
         }
 
@@ -599,7 +671,7 @@ class InterfaceGenerators:
                         mode='markers',
                         textposition=['bottom center'],
                         text=gene_slice_df['gene_ID'],
-                        marker={'size':11, 'line':{'width':2, 'color':'white'}},
+                        marker={'size':10, 'line':{'width':2, 'color':'white'}},
                         name=gene_name
                     )
                     if settings_rendering_radio_value == 'gl':
@@ -635,7 +707,7 @@ class InterfaceGenerators:
                 name='All Genes',
                 # Use different marker settings for WebGL because sizes
                 # render differently
-                marker={'size':4, 'color':'black', 'opacity':0.5})
+                marker={'size':3, 'color':'black', 'opacity':0.5})
             traces = [go.Scatter3d(**traces_dict)]
 
             if dropdown_value_gene_list is not None:
@@ -647,7 +719,7 @@ class InterfaceGenerators:
                         z=gene_slice_df['neg_log10_padj'],
                         mode='markers',
                         text=gene_slice_df['gene_ID'],
-                        marker={'size':6, 'line':{'width':2, 'color':'white'}},
+                        marker={'size':5, 'line':{'width':2, 'color':'white'}},
                         name=gene_name
                     )
                     traces.append(go.Scatter3d(traces_append_dict))
@@ -678,29 +750,6 @@ class InterfaceGenerators:
             }
 
         return figure
-
-    # Probably want to rename this
-    def collapsible_tree(self):
-        dash_collapsible_tree_test_data = {
-           'label': 'search me',
-           'value': 'searchme',
-           'children': [
-             {
-               'label': 'search me too',
-               'value': 'searchmetoo',
-               'children': [
-                 {
-                   'label': 'No one can get me',
-                   'value': 'anonymous',
-                 },
-               ],
-             },
-           ],
-         }
-
-        return html.Div([
-            dash_collapsible_tree.DashCollapsibleTree(id='dash-collapsible-tree', data=dash_collapsible_tree_test_data)
-        ])
 
     # Generate plot-containing tab
     def tab_plot(self, plot_label, plot_id, type, hidden_flag=False):
