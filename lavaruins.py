@@ -9,9 +9,9 @@ import time
 import os
 import flask
 # import dash_extendable_graph as deg
-import timeit
 import feather
 import lavastuff
+from natsort import natsorted
 
 files = lavastuff.LocalFiles(uploads_dir='uploads',
                              temp_dir='temp_data_files',
@@ -66,23 +66,6 @@ app.layout = generate.main_layout(
     [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings],
     [tab_table_all, tab_table_highlighted])
 
-# app.layout = generate.main_layout(
-#     [tab_plot_volcano, tab_plot_settings],
-#     [tab_table_all, tab_table_highlighted])
-
-@app.callback(
-    Output('organism-div', 'children'),
-    [Input('session-id', 'children')],
-    [State('organism-select', 'value')])
-def set_organism_type(session_id, organism_type):
-    print('-> "Triggered set_organism_type"')
-    # if (organism_type is None) or (session_id is None):
-    if organism_type is None:
-         raise dash.exceptions.PreventUpdate()
-    else:
-        print(organism_type)
-        return organism_type
-
 #Get data from user, set session ID, and set up slider initial values
 @app.callback(
     [
@@ -104,9 +87,6 @@ def set_organism_type(session_id, organism_type):
         Input('upload-data', 'fileNames'),
     ])
 def handle_df(filenames):
-    print('-> Triggered "handle_df"')
-    start_time = timeit.default_timer()
-
     if filenames is None:
          raise dash.exceptions.PreventUpdate()
     else:
@@ -124,8 +104,8 @@ def handle_df(filenames):
         cluster_dropdown_style = {}
 
         session_id = str(uuid.uuid4())
-        print('session_id: ' + session_id)
-        # Only look at the last uploaded file if multiple are dropped on LavaRuins
+
+        # Only look at the last uploaded file if multiple files are dropped on LavaRuins
         filename = filenames[-1]
         df = parse_file_contents(filename)
 
@@ -158,7 +138,7 @@ def handle_df(filenames):
         # !!Need to catch error if critical colnames not found
         present_colnames = df.columns.tolist()
         standard_colnames_found = list(set(present_colnames).intersection(standard_colnames))
-        other_colnames = list(set(standard_colnames_found) - set(standard_colnames))
+        other_colnames = list(set(present_colnames) - set(standard_colnames_found))
         reorderd_colnames = standard_colnames_found + other_colnames
         df = df[reorderd_colnames]
 
@@ -178,12 +158,16 @@ def handle_df(filenames):
 
         files.write_global_vars(global_vars, session_id)
 
-        # Calculating these values upfront sidesteps weird bug where np.log functions
-        # return positively or negatively infinite output values for input values between
-        # roughly 1e-12 and le-15 and not above or below those values (except for 0)
+        ''' 
+        Calculating these values upfront sidesteps weird bug where np.log
+        functions return positively or negatively infinite output values for 
+        input values between roughly 1e-12 and le-15 and not above or below 
+        those values (except for 0)
+        '''
         # !!Hack: set adjusted p-values beyond numerical precision of Excel
         smallest_float = 1.00E-307
         df.loc[df['padj']==0, 'padj'] = smallest_float
+        df.loc[df['pvalue']==0, 'pvalue'] = smallest_float
         # !!Hack: Remove values with baseMean of 0
         try:
             df = df[df['baseMean']!=0]
@@ -209,10 +193,7 @@ def handle_df(filenames):
         except:
             pass
 
-        print('\thandle_df elapsed time:', timeit.default_timer() - start_time)
-
         # Determine plots in the layout by uploaded file type
-        print(file_type)
 
         return(session_id,
                 min_transform_padj,
@@ -276,25 +257,29 @@ def slider_setup(measurement_name):
 
             return  [set_min_transform, set_max_transform]
 
+# Setup filter slider callbacks
 slider_setup('pvalue')
 slider_setup('foldchange')
 slider_setup('basemean')
 
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
-    Output('gene-dropdown', 'options'),
-    [Input('session-id', 'children')])
-def populate_gene_dropdown(session_id):
-    start_time = timeit.default_timer()
-    print('-> Triggered "populate_gene_dropdown"')
+    [Output('gene-dropdown', 'options'),
+     Output('cluster-dropdown', 'options')],
+    [Input('session-id', 'children'),
+     Input('file-type', 'children')])
+def populate_gene_and_cluster_dropdowns(session_id, file_type):
     if session_id is None:
-        print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
         raise dash.exceptions.PreventUpdate()
     else:
         df = feather.read_dataframe('temp_data_files/' + session_id)
-        dropdown_options =[{'label':i, 'value':i} for i in df['gene_ID']]
-        print('\tpopulate_gene_dropdown:', timeit.default_timer() - start_time)
-        return dropdown_options
+        gene_dropdown_options = [{'label':i, 'value':i} for i in df['gene_ID']]
+        cluster_dropdown_options = [{'label':'NA', 'value':'NA'}]
+        if file_type == 'sc':
+            clusters = natsorted(df['cluster'].unique())
+            cluster_dropdown_options = [{'label':i, 'value':i} 
+                                        for i in clusters]
+        return(gene_dropdown_options, cluster_dropdown_options)
 
 # Subset data from imported RNAseq file on slider values
 @app.callback(
@@ -302,21 +287,22 @@ def populate_gene_dropdown(session_id):
     [Input('session-id', 'children'),
      Input('pvalue-slider', 'value'),
      Input('foldchange-slider', 'value'),
-     Input('basemean-slider', 'value')]
-    )
+     Input('basemean-slider', 'value'),
+     Input('cluster-dropdown', 'value')])
 def subset_data(
     session_id,
     pvalue_slider_value,
     foldchange_slider_value,
     basemean_slider_value,
+    cluster_dropdown_value
     ):
-    print('-> Triggered "subset_data"')
-    start_time = timeit.default_timer()
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
         df = feather.read_dataframe('temp_data_files/' + session_id)
         df = df.rename(index=str, columns={'symbol':'gene_ID'})
+        if cluster_dropdown_value is not None:
+            df = df[df['cluster'] == cluster_dropdown_value]
         if pvalue_slider_value is not None:
             min_slider = pvalue_slider_value[0]
             max_slider = pvalue_slider_value[1]
@@ -333,8 +319,6 @@ def subset_data(
                 df = df[df['log10basemean'].between(min_slider, max_slider)]
             except:
                 pass
-    print('\tsubset_data elapsed time:', timeit.default_timer() - start_time)
-    # df.to_json('temp_data_files/' + session_id + '_subset')
     feather.write_dataframe(df, 'temp_data_files/' + session_id + '_subset')
     return None
 
@@ -420,7 +404,6 @@ def maxvolc():
         dropdown_value_gene_list,
         data,
         file_type):
-        print('plot_maxvolc() triggered')
         if session_id is None:
             raise dash.exceptions.PreventUpdate()
         else:
@@ -468,13 +451,11 @@ def serve_static(path):
         Input('gene-dropdown', 'value'),
     ])
 def populate_tables(session_id, dropdown_value_gene_list):
-    print('-> Triggered "populate_tables"')
-    start_time = timeit.default_timer()
-
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
         df = feather.read_dataframe(files.temp_dir + '/' + session_id)
+        df.dropna(how='all', axis=1, inplace=True)
 
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
@@ -495,7 +476,6 @@ def populate_tables(session_id, dropdown_value_gene_list):
             # For downloads
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
             dropdown_slice_df.to_csv(highlighted_relative_filename)
-        print('\tpopulate_tables elapsed time:', timeit.default_timer() - start_time)
         return(
             all_genes_table_columns,
             all_genes_table_data,
@@ -545,9 +525,6 @@ def gene_click_actions(
     mavolc_clickdata,
     file_type):
 
-    print('-> Triggered "gene_click_actions"')
-    start_time = timeit.default_timer()
-
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
@@ -577,8 +554,6 @@ def gene_click_actions(
         # Add gene to dropdown gene menu if clickdata isn't empty
         if clickdata:
             clicked_gene = clickdata['points'][0]['text']
-            print(clicked_gene)
-            print(current_gene_dropdown_list)
             if clicked_gene not in current_gene_dropdown_list:
                 current_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
 
@@ -586,10 +561,8 @@ def gene_click_actions(
             global_vars['gene_dropdown_value_list'] = current_gene_dropdown_list
             files.write_global_vars(global_vars, session_id)
 
-            print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
             return current_gene_dropdown_list
         else:
-            print('\tgene_click_actions elapsed time:', timeit.default_timer() - start_time)
             return []
 
 # Generate Gene Info panel
@@ -613,5 +586,5 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
 
 if __name__ == '__main__':
     # app.run_server(threaded=True)
-    app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    # app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
+    # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
+    app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)

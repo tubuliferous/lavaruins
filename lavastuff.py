@@ -40,15 +40,15 @@ class NumericalConverters:
     def __init__(self):
         pass
 
-    # For handling string conversion to int when string can be None
     def string_to_int(self, x):
+        '''For handling string conversion to int when string can be None'''
         if x is None:
             return int(0)
         else:
             return(int(x))
 
-    # For handling ints that might be None
     def safe_int(self, x):
+        '''For handling ints that might be None'''
         if x is None:
             return int(0)
         else:
@@ -58,25 +58,33 @@ class PlotCalculations:
     def __init__(self):
         pass
     #   - For use with giving value to zero-valued p-values
-    #   - Source: https://stackoverflow.com/questions/1835787/what-is-the-range-of-values-a-float-can-have-in-python
+    #   - Source: 
     def float_limits(self):
-        '''Return a tuple of min, max positive numbers
-        representable by the platform's float'''
+        '''
+        Determine platform float limits when assigning lowest possible value
+        to small, non-zero values that are zero due precision limitation.
 
-        # first, make sure a float's a float
+        Return a tuple of min, max positive numbers
+        representable by the platform's float  
+
+        Source: https://stackoverflow.com/questions/1835787/\
+        what-is-the-range-of-values-a-float-can-have-in-python
+        '''
+        
+        # Make sure a float's a float
         if 1.0/10*10 == 10.0:
             raise RuntimeError('Your platform\'s floats aren\'t')
 
         minimum= maximum= 1.0
         infinity= float('+inf')
 
-        # first find minimum
+        # Find minimum
         last_minimum= 2*minimum
         while last_minimum > minimum > 0:
             last_minimum= minimum
             minimum*= 0.5
 
-        # now find maximum
+        # Now find maximum
         operands= []
         while maximum < infinity:
             operands.append(maximum)
@@ -115,8 +123,14 @@ class InterfaceGenerators:
     def __init__(self):
         pass
 
-    # Template for features on the left LavaRuins interface panel
-    def __panel_feature(self, element_id, details_summary="NA", open_details=False, visibility=True, html_element_list=[]):
+    def __panel_feature(
+        self, 
+        element_id, 
+        details_summary="NA", 
+        open_details=False, 
+        visibility=True, 
+        html_element_list=[]):
+        '''Template for features on the left LavaRuins interface panel'''
         details_style = {'margin-bottom':'5px','margin-top':'5px'}
         if visibility == True:
             div_style = {}
@@ -134,8 +148,8 @@ class InterfaceGenerators:
                 style=div_style)
         return output_html
 
-    # Set up the basic plot layout
     def main_layout(self, tab_plots=[], tab_tables=[]):
+        '''Serve the main Dash layout '''
 
         # ------------ Left panel features ------------
         # File upload with organism selection
@@ -363,11 +377,11 @@ class InterfaceGenerators:
             ]
         )
 
-    # Set up sliders on left side
     def slider_layout(self,
                       slider_id,
                       input_min_id,input_max_id,
                       submit_button_id, reset_button_id):
+        '''Set up sliders for different quantitative filters'''
         return html.Div([
             html.Div([
                 # !!Consider using style 'display':table-cell' for better fromatting of components below
@@ -396,13 +410,15 @@ class InterfaceGenerators:
                                    'margin-left':'5px'})
             ], style={'width':'90%'})
 
-    # Setup gene information panel
-    #    -> files parameter is a LocalFiles class object
     def gene_info(self,
                   gene_name='default',
                   df=None,organism_type=None,
                   files=None,
                   file_type=None): 
+        '''
+        Set up gene information panel on left side of Dash interface 
+            -> files paramenter is a LocalFiles class object
+        '''
         if gene_name == 'default':
             default_text = html.P(children = 
                                 html.H5('Click on plotted gene for information'),
@@ -614,7 +630,6 @@ class InterfaceGenerators:
                 
                 return [human_details]
 
-    # Method for generating scatter plots in callbacks below
     def scatter(self,
                 df,
                 dropdown_value_gene_list,
@@ -627,6 +642,9 @@ class InterfaceGenerators:
                 z_colname=None,
                 z_axis_title=None):
 
+        '''
+        Method for generating scatter plots in callbacks below
+        '''
         marker_settings_2d = {
             'color':'black',
             'size':6,
@@ -751,10 +769,14 @@ class InterfaceGenerators:
 
         return figure
 
-    # Generate plot-containing tab
     def tab_plot(self, plot_label, plot_id, type, hidden_flag=False):
-        # Mode Bar button descriptions:
-        #   https://github.com/plotly/plotly.github.io/blob/master/_posts/fundamentals/2015-09-01-getting-to-know-the-plotly-modebar.md
+        '''
+        Generate plot-containing tab for the center of the Dash interface
+
+        Some buttons are hidden. Mode Bar button descriptions:
+        https://github.com/plotly/plotly.github.io/blob/master/_posts/\
+        fundamentals/2015-09-01-getting-to-know-the-plotly-modebar.md
+        '''
         dim2_button_exceptions = [
             'pan2d',
             'zoomIn2d',
@@ -836,7 +858,6 @@ class InterfaceGenerators:
                 selected_style=tab_selected_style
         )
 
-    # Generate table for tab at bottom of interface 
     def tab_table(self, plot_label, table_id, download_link_id=None):
         tab_style = {
             'padding':'6px',
@@ -848,7 +869,9 @@ class InterfaceGenerators:
             'color':'white',
             'padding':'6px',
         }
-
+        '''
+        Generate table for tab at bottom of interface
+        '''
         tab_children = []
         tab_children.append(
             # DataTable features: https://dash.plot.ly/datatable/interactivity
