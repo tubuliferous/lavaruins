@@ -87,6 +87,7 @@ app.layout = generate.main_layout(
         Input('upload-data', 'fileNames'),
     ])
 def handle_df(filenames):
+    print('Triggered handle_df()')
     if filenames is None:
          raise dash.exceptions.PreventUpdate()
     else:
@@ -146,7 +147,7 @@ def handle_df(filenames):
             'pvalue_reset_click_count':None,
             'foldchange_reset_click_count':None,
             'basemean_reset_click_count':None,
-            'gene_dropdown_value_list': []
+            # 'gene_dropdown_value_list': []
         }
 
         if 'cluster' in present_colnames:
@@ -264,22 +265,34 @@ slider_setup('basemean')
 
 # Populate gene dropdown menu from imported RNAseq file
 @app.callback(
-    [Output('gene-dropdown', 'options'),
-     Output('cluster-dropdown', 'options')],
-    [Input('session-id', 'children'),
-     Input('file-type', 'children')])
-def populate_gene_and_cluster_dropdowns(session_id, file_type):
+    Output('gene-dropdown', 'options'),
+    [Input('session-id', 'children')])
+def populate_gene_dropdown(session_id):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
         df = feather.read_dataframe('temp_data_files/' + session_id)
         gene_dropdown_options = [{'label':i, 'value':i} for i in df['gene_ID']]
-        cluster_dropdown_options = [{'label':'NA', 'value':'NA'}]
+        return(gene_dropdown_options)
+
+# Populate cluster dropdown menu from imported RNAseq file, chained on the
+# pupulate_gene_dropdown() callback
+@app.callback(
+    Output('cluster-dropdown', 'options'),
+    [Input('gene-dropdown', 'options')],
+    [State('session-id', 'children'),
+     State('file-type', 'children')])
+def populate_cluster_dropdown(gene_dropdown_options, session_id, file_type):
+    cluster_dropdown_options = [{'label':'NA', 'value':'NA'}]
+    print("Triggered populate_cluster_dropdown, file_type =", file_type)
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        df = feather.read_dataframe('temp_data_files/' + session_id)
         if file_type == 'sc':
             clusters = natsorted(df['cluster'].unique())
-            cluster_dropdown_options = [{'label':i, 'value':i} 
-                                        for i in clusters]
-        return(gene_dropdown_options, cluster_dropdown_options)
+            cluster_dropdown_options = [{'label':i, 'value':i} for i in clusters]
+        return(cluster_dropdown_options)
 
 # Subset data from imported RNAseq file on slider values
 @app.callback(
@@ -506,6 +519,13 @@ for plot_id in plot_id_list:
 def reset_clickdata(session_id):
     return(None, None, None)
 
+# # Reset cluster dropdown menu when loading new file
+# @app.callback(
+#     [Output('cluster-dropdown', 'value')],
+#     [Input('session-id', 'children')])
+# def reset_cluster_dropdown(session_id):
+#     return([None])
+
 # Make stuff happen when gene points are clicked on in plots
 @app.callback(
     Output('gene-dropdown', 'value'),
@@ -513,7 +533,8 @@ def reset_clickdata(session_id):
     [Input('organism-div', 'children')] +
     [Input(plot_id + '-timediv', 'children') for plot_id in plot_id_list] +
     [Input(plot_id, 'clickData') for plot_id in plot_id_list],
-    [State('file-type', 'children')])
+    [State('file-type', 'children'),
+     State('gene-dropdown', 'value')])
 def gene_click_actions(
     session_id,
     organism_type,
@@ -523,14 +544,14 @@ def gene_click_actions(
     volcano_clickdata,
     ma_clickdata,
     mavolc_clickdata,
-    file_type):
+    file_type,
+    gene_dropdown_value_list):
 
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        global_vars = files.read_global_vars(session_id)
-
-        current_gene_dropdown_list = global_vars['gene_dropdown_value_list']
+        # global_vars = files.read_global_vars(session_id)
+        # current_gene_dropdown_list = global_vars['gene_dropdown_value_list']
 
         plot_timestamp_dict = {'volcano-plot':
                                     convert.string_to_int(volcano_plot_timediv),
@@ -554,14 +575,14 @@ def gene_click_actions(
         # Add gene to dropdown gene menu if clickdata isn't empty
         if clickdata:
             clicked_gene = clickdata['points'][0]['text']
-            if clicked_gene not in current_gene_dropdown_list:
-                current_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
+            # if clicked_gene not in current_gene_dropdown_list:
+            #     current_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
 
             # Write the new dropdown gene list back to the global variables file
-            global_vars['gene_dropdown_value_list'] = current_gene_dropdown_list
-            files.write_global_vars(global_vars, session_id)
-
-            return current_gene_dropdown_list
+            # global_vars['gene_dropdown_value_list'] = current_gene_dropdown_list
+            # files.write_global_vars(global_vars, session_id)
+            return gene_dropdown_value_list + [clicked_gene]
+            # return current_gene_dropdown_list
         else:
             return []
 
@@ -571,10 +592,14 @@ def gene_click_actions(
     [Input('gene-dropdown', 'value'),
      Input('organism-select', 'value')],
     [State('session-id', 'children'),
-     State('file-type', 'children')])
-def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type):
+     State('file-type', 'children'),
+     State('cluster-dropdown', 'value')])
+def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type, cluster):
     if len(gene_dropdown_list) != 0:
         df = feather.read_dataframe('temp_data_files/' + session_id)
+        if cluster is not None:
+            print(cluster)
+            df = df[df['cluster'] == cluster]
         markdown = generate.gene_info(gene_name=gene_dropdown_list[-1],
                                       df=df,
                                       organism_type=organism_type,
