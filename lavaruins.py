@@ -519,13 +519,6 @@ for plot_id in plot_id_list:
 def reset_clickdata(session_id):
     return(None, None, None)
 
-# # Reset cluster dropdown menu when loading new file
-# @app.callback(
-#     [Output('cluster-dropdown', 'value')],
-#     [Input('session-id', 'children')])
-# def reset_cluster_dropdown(session_id):
-#     return([None])
-
 # Make stuff happen when gene points are clicked on in plots
 @app.callback(
     Output('gene-dropdown', 'value'),
@@ -550,9 +543,6 @@ def gene_click_actions(
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        # global_vars = files.read_global_vars(session_id)
-        # current_gene_dropdown_list = global_vars['gene_dropdown_value_list']
-
         plot_timestamp_dict = {'volcano-plot':
                                     convert.string_to_int(volcano_plot_timediv),
                                'ma-plot':
@@ -575,14 +565,7 @@ def gene_click_actions(
         # Add gene to dropdown gene menu if clickdata isn't empty
         if clickdata:
             clicked_gene = clickdata['points'][0]['text']
-            # if clicked_gene not in current_gene_dropdown_list:
-            #     current_gene_dropdown_list = current_gene_dropdown_list + [clicked_gene]
-
-            # Write the new dropdown gene list back to the global variables file
-            # global_vars['gene_dropdown_value_list'] = current_gene_dropdown_list
-            # files.write_global_vars(global_vars, session_id)
             return gene_dropdown_value_list + [clicked_gene]
-            # return current_gene_dropdown_list
         else:
             return []
 
