@@ -565,7 +565,10 @@ def gene_click_actions(
         # Add gene to dropdown gene menu if clickdata isn't empty
         if clickdata:
             clicked_gene = clickdata['points'][0]['text']
-            return gene_dropdown_value_list + [clicked_gene]
+            if clicked_gene in gene_dropdown_value_list:
+                return dash.no_update
+            else:
+                return gene_dropdown_value_list + [clicked_gene]
         else:
             return []
 
