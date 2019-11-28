@@ -87,7 +87,6 @@ app.layout = generate.main_layout(
         Input('upload-data', 'fileNames'),
     ])
 def handle_df(filenames):
-    print('Triggered handle_df()')
     if filenames is None:
          raise dash.exceptions.PreventUpdate()
     else:
@@ -285,7 +284,6 @@ def populate_gene_dropdown(session_id):
      State('file-type', 'children')])
 def populate_cluster_dropdown(gene_dropdown_options, session_id, file_type):
     cluster_dropdown_options = [{'label':'NA', 'value':'NA'}]
-    print("Triggered populate_cluster_dropdown, file_type =", file_type)
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
@@ -566,16 +564,15 @@ def gene_click_actions(
         # Add gene to dropdown gene menu if clickdata isn't empty
         if clickdata:
             clicked_gene = clickdata['points'][0]['text']
-            # print(clicked_gene)
             if clicked_gene not in gene_dropdown_value_list:
                 gene_dropdown_value_list = gene_dropdown_value_list + [clicked_gene]
-            if clicked_gene in gene_dropdown_value_list:
-                gene_dropdown_value_list.remove(clicked_gene)
-                gene_dropdown_value_list.insert(len(gene_dropdown_value_list), clicked_gene)
-            # global_vars = files.read_global_vars(session_id)
+            # if clicked_gene in gene_dropdown_value_list:
+                # gene_dropdown_value_list.remove(clicked_gene)
+                # gene_dropdown_value_list.insert(len(gene_dropdown_value_list), clicked_gene)
+            global_vars = files.read_global_vars(session_id)
             # global_vars['gene_dropdown_value_list'] = gene_dropdown_value_list
-            # global_vars['last_selected_gene'] = clicked_gene
-            # files.write_global_vars(global_vars, session_id)
+            global_vars['last_selected_gene'] = clicked_gene
+            files.write_global_vars(global_vars, session_id)
             return(gene_dropdown_value_list)
         else:
             return []
@@ -589,21 +586,24 @@ def gene_click_actions(
      State('file-type', 'children'),
      State('cluster-dropdown', 'value')])
 def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type, cluster):
-    print(gene_dropdown_list)
     if gene_dropdown_list is None:
         dash.exceptions.PreventUpdate()
     if len(gene_dropdown_list) != 0:
-        print("Trigger setup_gene_markdown()")
         df = feather.read_dataframe('temp_data_files/' + session_id)
         if cluster is not None:
             df = df[df['cluster'] == cluster]
-        # global_vars = files.read_global_vars(session_id)
-        # last_selected_gene = global_vars['last_selected_gene']
+        global_vars = files.read_global_vars(session_id)
+        last_selected_gene = global_vars['last_selected_gene']
+        if gene_dropdown_list[len(gene_dropdown_list) - 1] != last_selected_gene:
+            pass
+        # files.write_global_vars(global_vars, session_id)
         markdown = generate.gene_info(
-                        # gene_name=last_selected_gene,
-                        gene_name=gene_dropdown_list[-1],
+                        gene_name=last_selected_gene,
+                        session_id = session_id,
+                        # gene_name=gene_dropdown_list[-1],
                         df=df,
                         organism_type=organism_type,
+                        # Funky use of global variables
                         files=files,
                         file_type=file_type)
     else:

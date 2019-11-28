@@ -415,6 +415,7 @@ class InterfaceGenerators:
 
     def gene_info(self,
                   gene_name='default',
+                  session_id = None,
                   df=None,organism_type=None,
                   files=None,
                   file_type=None): 
@@ -422,13 +423,20 @@ class InterfaceGenerators:
         Set up gene information panel on left side of Dash interface 
             -> files paramenter is a LocalFiles class object
         '''
+
+        # files = LocalFiles(uploads_dir='uploads',
+        #                      temp_dir='temp_data_files',
+        #                      resources_dir='resources')
+
+        # gene_name = files.read_global_vars(session_id)['last_selected_gene']
+
+        # if gene_name == None:
         if gene_name == 'default':
             default_text = html.P(children = 
                                 html.H5('Click on plotted gene for information'),
                                 style={'textAlign':'left'})
             return default_text
         else:
-            print(gene_name)
             neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
             log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
             # This is necessary for scRNA files that lack basemean scores
@@ -562,7 +570,6 @@ class InterfaceGenerators:
 
                 gene_annos = homolog_annos[(homolog_annos['Symbol']==gene_name) & 
                             (homolog_annos['Common Organism Name']==organism_string)]
-                print(gene_annos)
 
                 try:
                     hgnc_id = gene_annos['HGNC ID'].values[0]
