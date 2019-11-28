@@ -306,6 +306,9 @@ class InterfaceGenerators:
                 html.Div(id='maxvolc-plot-timediv', style={'display':'none'}),
                 # Hidden div for subset_data callback
                 html.Div(id='data-subset-sink', style={'display':'none'}),
+                # Keep track of the last clicked gene for highlighting and 
+                # metadata retrieval/display
+                html.Div(id='last-selected-gene', style={'display':'none'}),
                 # App title header
                 html.A(children=[
                     html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),], 
@@ -425,12 +428,13 @@ class InterfaceGenerators:
                                 style={'textAlign':'left'})
             return default_text
         else:
+            print(gene_name)
             neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
             log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
             # This is necessary for scRNA files that lack basemean scores
             if file_type == 'bulk':
                 log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
-                basemean_string = '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean)
+                basemean_string = '\n\n**log₁₀(base mean):** {:10.2f}'.format(log10basemean)
             if file_type == 'sc':
                 basemean_string = '\n\n**log₁₀(base mean):** NA'
 
@@ -508,10 +512,10 @@ class InterfaceGenerators:
                 mouse_md = dcc.Markdown(dedent('''''' +
                     '\n\n**Gene Name**: *{}*'.format(gene_name) +
                     '\n\n**Synonyms:** *{}*'.format(synonyms) +
-                    '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) +
+                    '\n\n**-log₁₀(adjusted p-value):    ** {:10.2f}'.format(neg_log10_padj) +
                     # '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
                     basemean_string + 
-                    '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
+                    '\n\n**log₂(fold change):** {:10.2f}'.format(log2foldchange) +
                     '\n\n**Location:** {}'.format(location) +
                     '\n\n**Functional Name:** {}'.format(function_name)))
                 mgi_html_id = html.B('MGI ID: ')
@@ -604,10 +608,10 @@ class InterfaceGenerators:
                 human_md = dcc.Markdown(dedent('''''' +
                     '\n\n**Gene Name**: *{}*'.format(gene_name) +
                     '\n\n**Synonyms:** *{}*'.format(synonyms) +
-                    '\n\n**-log₁₀(adjusted p-value):** {:3f}'.format(neg_log10_padj) +
+                    '\n\n**-log₁₀(adjusted p-value):** {:10.2f}'.format(neg_log10_padj) +
                     # '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
                     basemean_string +
-                    '\n\n**log₂(fold change):** {:3f}'.format(log2foldchange) +
+                    '\n\n**log₂(fold change):** {:10.2f}'.format(log2foldchange) +
                     '\n\n**Location:** {}'.format(location) +
                     '\n\n**Functional Name:** {}'.format(function_name) +
                     # Human homologs almost always have similar functional names, so leave out for now
@@ -641,7 +645,6 @@ class InterfaceGenerators:
                 y_axis_title,
                 z_colname=None,
                 z_axis_title=None):
-
         '''
         Method for generating scatter plots in callbacks below
         '''
