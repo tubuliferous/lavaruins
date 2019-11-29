@@ -611,5 +611,5 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
 
 if __name__ == '__main__':
     # app.run_server(threaded=True)
-    app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
+    app.run_server(debug=True, dev_tools_ui=True, processes=3, threaded=False)
     # app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
