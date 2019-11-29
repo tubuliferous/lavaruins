@@ -81,7 +81,8 @@ app.layout = generate.main_layout(
         Output('basemean-slider', 'marks'),
         Output('basemean-slider-div', 'style'),
         Output('cluster-dropdown-div', 'style'),
-        Output('file-type', 'children')
+        Output('file-type', 'children'),
+        Output('plot-tabs', 'children')
     ],
     [
         Input('upload-data', 'fileNames'),
@@ -153,9 +154,23 @@ def handle_df(filenames):
         if 'cluster' in present_colnames:
             file_type = 'sc'
             basemean_slider_style = {'display':'none'}
+
+            tab_plot_volcano  = generate.tab_plot('Volcano Plot', 'volcano-plot', type='2D')
+            tab_plot_ma       = generate.tab_plot('MA Plot', 'ma-plot', type='2D', disabled=True)
+            tab_plot_mavolc   = generate.tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D', disabled=True)
+            tab_plot_settings = generate.tab_plot('Plot Settings', 'settings-plot',type='settings')
+
+            plot_tabs = [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings]
         else:
             file_type = 'bulk'
             cluster_dropdown_style = {'display':'none'}
+
+            tab_plot_volcano  = generate.tab_plot('Volcano Plot', 'volcano-plot', type='2D')
+            tab_plot_ma       = generate.tab_plot('MA Plot', 'ma-plot', type='2D')
+            tab_plot_mavolc   = generate.tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D')
+            tab_plot_settings = generate.tab_plot('Plot Settings', 'settings-plot',type='settings')
+
+            plot_tabs = [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings]
 
         files.write_global_vars(global_vars, session_id)
 
@@ -211,7 +226,8 @@ def handle_df(filenames):
                                  max_transform_basemean),
                 basemean_slider_style,
                 cluster_dropdown_style,
-                file_type)
+                file_type,
+                plot_tabs)
 
 # Relies on <measurement>-<component> naming consistency in layout
 def slider_setup(measurement_name):
@@ -566,11 +582,7 @@ def gene_click_actions(
             clicked_gene = clickdata['points'][0]['text']
             if clicked_gene not in gene_dropdown_value_list:
                 gene_dropdown_value_list = gene_dropdown_value_list + [clicked_gene]
-            # if clicked_gene in gene_dropdown_value_list:
-                # gene_dropdown_value_list.remove(clicked_gene)
-                # gene_dropdown_value_list.insert(len(gene_dropdown_value_list), clicked_gene)
             global_vars = files.read_global_vars(session_id)
-            # global_vars['gene_dropdown_value_list'] = gene_dropdown_value_list
             global_vars['last_selected_gene'] = clicked_gene
             files.write_global_vars(global_vars, session_id)
             return(gene_dropdown_value_list)
@@ -594,9 +606,7 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
             df = df[df['cluster'] == cluster]
         global_vars = files.read_global_vars(session_id)
         last_selected_gene = global_vars['last_selected_gene']
-        # if gene_dropdown_list[len(gene_dropdown_list) - 1] != last_selected_gene:
         df_last_selected_gene = df[df['gene_ID']==last_selected_gene]
-        # files.write_global_vars(global_vars, session_id)
         markdown = generate.gene_info(
                         gene_name=last_selected_gene,
                         session_id = session_id,

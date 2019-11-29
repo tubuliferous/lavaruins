@@ -58,8 +58,7 @@ class NumericalConverters:
 class PlotCalculations:
     def __init__(self):
         pass
-    #   - For use with giving value to zero-valued p-values
-    #   - Source: 
+        
     def float_limits(self):
         '''
         Determine platform float limits when assigning lowest possible value
@@ -160,7 +159,6 @@ class InterfaceGenerators:
             open_details=True,
             html_element_list = \
                 [
-                    # html.Summary('File Upload'),
                     dash_resumable_upload.Upload(
                         id='upload-data',
                         maxFiles=1,
@@ -445,10 +443,11 @@ class InterfaceGenerators:
                     basemean_formatted = ' NA'
 
                 for index, row in df.iterrows():
-                    foldchange_formatted = '{:20.3f}'.format(row['log2FoldChange'])
-                    padj_formatted = '{:20.3f}'.format(row['neg_log10_padj'])
+                    foldchange_formatted = str(round(row['log2FoldChange'], 2))
+                    padj_formatted = str(round(row['neg_log10_padj'], 2))
                     if 'log10basemean' in df.columns:
-                        basemean_formatted = '{:20.3f}'.format(row['log10basemean'])
+                        # basemean_formatted = '{:20.3f}'.format(row['log10basemean'])
+                        basemean_formatted = str(round(row['log10basemean'], 2))
                     if 'cluster' in df.columns:
                         this_cluster = row['cluster']
                         foldchange_formatted = this_cluster + ': ' + foldchange_formatted
@@ -460,23 +459,16 @@ class InterfaceGenerators:
                     if 'log10basemean' in df.columns:
                         basemean_string += '\n\n  ' + basemean_formatted
             else:
-                foldchange_formatted = '{:20.3f}'.format(df['log2FoldChange'].values[0])
-                padj_formatted = '{:20.3f}'.format(df['neg_log10_padj'].values[0])
+                foldchange_formatted = str(round(df['log2FoldChange'].values[0], 2))
+                padj_formatted = str(round(df['neg_log10_padj'].values[0], 2))
                 if 'log10basemean' in df.columns:
-                    basemean_formatted = '{:20.3f}'.format(df['log10basemean'].values[0])
+                    basemean_formatted = str(round(df['log10basemean'].values[0], 2))
                 else:
                     basemean_formatted = 'NA'
 
                 foldchange_string += ' ' + foldchange_formatted
                 padj_string += ' ' + padj_formatted
                 basemean_string += ' ' + basemean_formatted
-
-            # This is necessary for scRNA files that lack basemean scores
-            if file_type == 'bulk':
-                log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
-                basemean_string = '\n\n**log₁₀(base mean):** {:10.2f}'.format(log10basemean)
-            if file_type == 'sc':
-                basemean_string = '\n\n**log₁₀(base mean):** NA'
 
             #!! Use this as the basis for switching organisms for homolog lookups
             if organism_type == 'mouse':
@@ -552,11 +544,8 @@ class InterfaceGenerators:
                 mouse_md = dcc.Markdown(dedent('''''' +
                     '\n\n**Gene Name**: *{}*'.format(gene_name) +
                     '\n\n**Synonyms:** *{}*'.format(synonyms) +
-                    # '\n\n**-log₁₀(adjusted p-value):    ** {:10.2f}'.format(neg_log10_padj) +
                     padj_string +
-                    # '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
                     basemean_string +
-                    # '\n\n**log₂(fold change):** {:10.2f}'.format(log2foldchange) +
                     foldchange_string +
                     '\n\n**Location:** {}'.format(location) +
                     '\n\n**Functional Name:** {}'.format(function_name)))
@@ -649,11 +638,8 @@ class InterfaceGenerators:
                 human_md = dcc.Markdown(dedent('''''' +
                     '\n\n**Gene Name**: *{}*'.format(gene_name) +
                     '\n\n**Synonyms:** *{}*'.format(synonyms) +
-                    # '\n\n**-log₁₀(adjusted p-value):** {:10.2f}'.format(neg_log10_padj) +
                     padj_string + 
-                    # '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
                     basemean_string +
-                    # '\n\n**log₂(fold change):** {:10.2f}'.format(log2foldchange) +
                     foldchange_string + 
                     '\n\n**Location:** {}'.format(location) +
                     '\n\n**Functional Name:** {}'.format(function_name) +
@@ -771,7 +757,7 @@ class InterfaceGenerators:
                 mode='markers',
                 text=df['gene_ID'],
                 name='All Genes',
-                # Use different marker settings for WebGL because sizes
+                # Use different marker settings for WebGL vs. 2D because sizes
                 # render differently
                 marker={'size':3, 'color':'black', 'opacity':0.5})
             traces = [go.Scatter3d(**traces_dict)]
@@ -817,7 +803,7 @@ class InterfaceGenerators:
 
         return figure
 
-    def tab_plot(self, plot_label, plot_id, type, hidden_flag=False):
+    def tab_plot(self, plot_label, plot_id, type, disabled=False):
         '''
         Generate plot-containing tab for the center of the Dash interface
 
@@ -863,6 +849,11 @@ class InterfaceGenerators:
             'padding':'6px',
             'width':'150px',
         }
+        tab_disabled_style = {
+            'padding':'6px',
+            'width':'150px',
+        }
+
 
         if type == '2D':
             plot_config = {
@@ -903,10 +894,16 @@ class InterfaceGenerators:
                 label=plot_label,
                 children=tab_children,
                 style=tab_style,
-                selected_style=tab_selected_style
+                selected_style=tab_selected_style,
+                disabled_style=tab_disabled_style,
+                disabled=disabled
         )
 
     def tab_table(self, plot_label, table_id, download_link_id=None):
+        '''
+        Generate table for tab at bottom of interface
+        '''
+        
         tab_style = {
             'padding':'6px',
             'fontWeight':'bold',
@@ -917,9 +914,8 @@ class InterfaceGenerators:
             'color':'white',
             'padding':'6px',
         }
-        '''
-        Generate table for tab at bottom of interface
-        '''
+
+
         tab_children = []
         tab_children.append(
             # DataTable features: https://dash.plot.ly/datatable/interactivity
@@ -945,5 +941,5 @@ class InterfaceGenerators:
             label=plot_label,
             children=tab_children,
             style=tab_style,
-            selected_style=tab_selected_style
+            selected_style=tab_selected_style,
         )
