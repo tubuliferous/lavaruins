@@ -594,14 +594,13 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
             df = df[df['cluster'] == cluster]
         global_vars = files.read_global_vars(session_id)
         last_selected_gene = global_vars['last_selected_gene']
-        if gene_dropdown_list[len(gene_dropdown_list) - 1] != last_selected_gene:
-            pass
+        # if gene_dropdown_list[len(gene_dropdown_list) - 1] != last_selected_gene:
+        df_last_selected_gene = df[df['gene_ID']==last_selected_gene]
         # files.write_global_vars(global_vars, session_id)
         markdown = generate.gene_info(
                         gene_name=last_selected_gene,
                         session_id = session_id,
-                        # gene_name=gene_dropdown_list[-1],
-                        df=df,
+                        df=df_last_selected_gene,
                         organism_type=organism_type,
                         # Funky use of global variables
                         files=files,

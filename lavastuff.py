@@ -8,6 +8,7 @@ import dash_collapsible_tree
 import plotly.graph_objs as go
 import numpy as np
 from textwrap import dedent
+from natsort import index_natsorted, order_by_index
 
 class LocalFiles:
     def __init__(self, uploads_dir, temp_dir, resources_dir):
@@ -204,6 +205,7 @@ class InterfaceGenerators:
         __gene_dropdown_feature = self.__panel_feature(
             element_id='gene-dropdown-div',
             details_summary='Highlight Genes',
+            open_details=True,
             html_element_list=\
                 [
                     html.Div([
@@ -424,21 +426,51 @@ class InterfaceGenerators:
             -> files paramenter is a LocalFiles class object
         '''
 
-        # files = LocalFiles(uploads_dir='uploads',
-        #                      temp_dir='temp_data_files',
-        #                      resources_dir='resources')
-
-        # gene_name = files.read_global_vars(session_id)['last_selected_gene']
-
-        # if gene_name == None:
         if gene_name == 'default':
             default_text = html.P(children = 
                                 html.H5('Click on plotted gene for information'),
                                 style={'textAlign':'left'})
             return default_text
         else:
-            neg_log10_padj = df[df['gene_ID'] == gene_name]['neg_log10_padj'].values[0]
-            log2foldchange = df[df['gene_ID'] == gene_name]['log2FoldChange'].values[0]
+            foldchange_string = '\n\n**log₂(fold change):**'
+            padj_string = '\n\n**-log₁₀(adjusted p-value):**'
+            basemean_string = '\n\n**log₁₀(base mean):**'
+
+            df_row_number = df.shape[0]
+            if df_row_number > 1:
+                if 'cluster' in df.columns:
+                    df = df.reindex(index=order_by_index(df.index, index_natsorted(df.cluster)))
+
+                if 'log10basemean' not in df.columns:
+                    basemean_formatted = ' NA'
+
+                for index, row in df.iterrows():
+                    foldchange_formatted = '{:20.3f}'.format(row['log2FoldChange'])
+                    padj_formatted = '{:20.3f}'.format(row['neg_log10_padj'])
+                    if 'log10basemean' in df.columns:
+                        basemean_formatted = '{:20.3f}'.format(row['log10basemean'])
+                    if 'cluster' in df.columns:
+                        this_cluster = row['cluster']
+                        foldchange_formatted = this_cluster + ': ' + foldchange_formatted
+                        padj_formatted = this_cluster + ': ' + padj_formatted
+                        if 'log10basemean' in df.columns:
+                            basemean_formatted = this_cluster + ': ' + basemean_formatted
+                    foldchange_string += '\n\n  ' + foldchange_formatted
+                    padj_string += '\n\n  ' + padj_formatted
+                    if 'log10basemean' in df.columns:
+                        basemean_string += '\n\n  ' + basemean_formatted
+            else:
+                foldchange_formatted = '{:20.3f}'.format(df['log2FoldChange'].values[0])
+                padj_formatted = '{:20.3f}'.format(df['neg_log10_padj'].values[0])
+                if 'log10basemean' in df.columns:
+                    basemean_formatted = '{:20.3f}'.format(df['log10basemean'].values[0])
+                else:
+                    basemean_formatted = 'NA'
+
+                foldchange_string += ' ' + foldchange_formatted
+                padj_string += ' ' + padj_formatted
+                basemean_string += ' ' + basemean_formatted
+
             # This is necessary for scRNA files that lack basemean scores
             if file_type == 'bulk':
                 log10basemean = df[df['gene_ID'] == gene_name]['log10basemean'].values[0]
@@ -520,10 +552,12 @@ class InterfaceGenerators:
                 mouse_md = dcc.Markdown(dedent('''''' +
                     '\n\n**Gene Name**: *{}*'.format(gene_name) +
                     '\n\n**Synonyms:** *{}*'.format(synonyms) +
-                    '\n\n**-log₁₀(adjusted p-value):    ** {:10.2f}'.format(neg_log10_padj) +
+                    # '\n\n**-log₁₀(adjusted p-value):    ** {:10.2f}'.format(neg_log10_padj) +
+                    padj_string +
                     # '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
-                    basemean_string + 
-                    '\n\n**log₂(fold change):** {:10.2f}'.format(log2foldchange) +
+                    basemean_string +
+                    # '\n\n**log₂(fold change):** {:10.2f}'.format(log2foldchange) +
+                    foldchange_string +
                     '\n\n**Location:** {}'.format(location) +
                     '\n\n**Functional Name:** {}'.format(function_name)))
                 mgi_html_id = html.B('MGI ID: ')
@@ -615,10 +649,12 @@ class InterfaceGenerators:
                 human_md = dcc.Markdown(dedent('''''' +
                     '\n\n**Gene Name**: *{}*'.format(gene_name) +
                     '\n\n**Synonyms:** *{}*'.format(synonyms) +
-                    '\n\n**-log₁₀(adjusted p-value):** {:10.2f}'.format(neg_log10_padj) +
+                    # '\n\n**-log₁₀(adjusted p-value):** {:10.2f}'.format(neg_log10_padj) +
+                    padj_string + 
                     # '\n\n**log₁₀(base mean):** {:3f}'.format(log10basemean) +
                     basemean_string +
-                    '\n\n**log₂(fold change):** {:10.2f}'.format(log2foldchange) +
+                    # '\n\n**log₂(fold change):** {:10.2f}'.format(log2foldchange) +
+                    foldchange_string + 
                     '\n\n**Location:** {}'.format(location) +
                     '\n\n**Functional Name:** {}'.format(function_name) +
                     # Human homologs almost always have similar functional names, so leave out for now
@@ -671,7 +707,9 @@ class InterfaceGenerators:
             '#e377c2',  # raspberry yogurt pink
             # '#7f7f7f',  # middle gray
             '#bcbd22',  # curry yellow-green
-            '#17becf'   # blue-teal
+            '#17becf',   # blue-teal
+            '#ffcc66',
+            '#800000'
         ]
         
         # 2D plot setup
