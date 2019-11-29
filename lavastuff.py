@@ -58,7 +58,7 @@ class NumericalConverters:
 class PlotCalculations:
     def __init__(self):
         pass
-        
+
     def float_limits(self):
         '''
         Determine platform float limits when assigning lowest possible value
@@ -440,13 +440,12 @@ class InterfaceGenerators:
                     df = df.reindex(index=order_by_index(df.index, index_natsorted(df.cluster)))
 
                 if 'log10basemean' not in df.columns:
-                    basemean_formatted = ' NA'
+                    basemean_string += ' NA'
 
                 for index, row in df.iterrows():
                     foldchange_formatted = str(round(row['log2FoldChange'], 2))
                     padj_formatted = str(round(row['neg_log10_padj'], 2))
                     if 'log10basemean' in df.columns:
-                        # basemean_formatted = '{:20.3f}'.format(row['log10basemean'])
                         basemean_formatted = str(round(row['log10basemean'], 2))
                     if 'cluster' in df.columns:
                         this_cluster = row['cluster']
@@ -457,7 +456,7 @@ class InterfaceGenerators:
                     foldchange_string += '\n\n  ' + foldchange_formatted
                     padj_string += '\n\n  ' + padj_formatted
                     if 'log10basemean' in df.columns:
-                        basemean_string += '\n\n  ' + basemean_formatted
+                        basemean_string += '\n\n  ' + basemean_formatted   
             else:
                 foldchange_formatted = str(round(df['log2FoldChange'].values[0], 2))
                 padj_formatted = str(round(df['neg_log10_padj'].values[0], 2))
@@ -559,10 +558,17 @@ class InterfaceGenerators:
                     # Human homologs almost always have similar functional names, 
                     #   so leave out for now
                     '\n\n**Homolog Location:** {}'.format(human_location)))
+
                 hgnc_html_id = html.B('HGNC ID: ')
-                hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
+                if hgnc_link != 'NA':
+                    hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
+                else:
+                    hgnc_html_link = hgnc_link
                 omim_html_id = html.B('OMIM ID: ')
-                omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
+                if omim_link != 'NA':
+                    omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
+                else:
+                    omim_html_link = omim_link
 
                 mouse_details = html.Details([
                         html.Summary(mouse_header, style={'position': 'relative'}),
@@ -645,10 +651,17 @@ class InterfaceGenerators:
                     '\n\n**Functional Name:** {}'.format(function_name) +
                     # Human homologs almost always have similar functional names, so leave out for now
                     '\n\n**Location:** {}'.format(location)))
+                
                 hgnc_html_id = html.B('HGNC ID: ')
-                hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
+                if hgnc_link != 'NA':
+                    hgnc_html_link = html.A(hgnc_id, href=hgnc_link, target='_blank')
+                else:
+                    hgnc_html_link = hgnc_link
                 omim_html_id = html.B('OMIM ID: ')
-                omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
+                if omim_link != 'NA':
+                    omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
+                else:
+                    omim_html_link = omim_link
 
                 human_details = html.Details([
                     html.Summary(human_header, style={'position':'relative'}),
