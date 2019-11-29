@@ -122,58 +122,6 @@ def handle_df(filenames):
                 'gene':'gene_ID'}, 
             inplace=True)
 
-        # Reorder column names to prefered order
-        standard_colnames = [
-            'gene_ID',
-            'log2FoldChange',
-            'baseMean',
-            'pvalue',
-            'padj',
-            'lfcSE',
-            'stat',
-            'weight',
-            'Row.names'
-        ]
-
-        # Exclude column names that aren't in the file
-        # !!Need to catch error if critical colnames not found
-        present_colnames = df.columns.tolist()
-        standard_colnames_found = list(set(present_colnames).intersection(standard_colnames))
-        other_colnames = list(set(present_colnames) - set(standard_colnames_found))
-        reorderd_colnames = standard_colnames_found + other_colnames
-        df = df[reorderd_colnames]
-
-        global_vars = {
-            'pvalue_reset_click_count':None,
-            'foldchange_reset_click_count':None,
-            'basemean_reset_click_count':None,
-            'gene_dropdown_value_list': [],
-            'last_selected_gene':None
-        }
-
-        if 'cluster' in present_colnames:
-            file_type = 'sc'
-            basemean_slider_style = {'display':'none'}
-
-            tab_plot_volcano  = generate.tab_plot('Volcano Plot', 'volcano-plot', type='2D')
-            tab_plot_ma       = generate.tab_plot('MA Plot', 'ma-plot', type='2D', disabled=True)
-            tab_plot_mavolc   = generate.tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D', disabled=True)
-            tab_plot_settings = generate.tab_plot('Plot Settings', 'settings-plot',type='settings')
-
-            plot_tabs = [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings]
-        else:
-            file_type = 'bulk'
-            cluster_dropdown_style = {'display':'none'}
-
-            tab_plot_volcano  = generate.tab_plot('Volcano Plot', 'volcano-plot', type='2D')
-            tab_plot_ma       = generate.tab_plot('MA Plot', 'ma-plot', type='2D')
-            tab_plot_mavolc   = generate.tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D')
-            tab_plot_settings = generate.tab_plot('Plot Settings', 'settings-plot',type='settings')
-
-            plot_tabs = [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings]
-
-        files.write_global_vars(global_vars, session_id)
-
         ''' 
         Calculating these values upfront sidesteps weird bug where np.log
         functions return positively or negatively infinite output values for 
@@ -197,6 +145,51 @@ def handle_df(filenames):
         except:
             pass
 
+        # Move important column names to the left of the DataFrame
+        # !!Need to catch error if critical colnames not found
+        if 'baseMean' in df.columns:
+            front_colnames = ['gene_ID', 'log2FoldChange', 'padj', 'neg_log10_padj', 'baseMean', 'log10basemean']
+        else:
+            front_colnames = ['gene_ID', 'log2FoldChange', 'padj', 'neg_log10_padj']
+        colnames = df.columns.tolist()
+        # Remove duplicate colnames moved to left
+        for this_colname in front_colnames:
+            colnames.remove(this_colname)
+        colnames = front_colnames + colnames
+        df = df[colnames]
+
+        global_vars = {
+            'pvalue_reset_click_count':None,
+            'foldchange_reset_click_count':None,
+            'basemean_reset_click_count':None,
+            'gene_dropdown_value_list': [],
+            'last_selected_gene':None
+        }
+
+        # Determine plots layout by uploaded file type
+        if 'cluster' in colnames:
+            file_type = 'sc'
+            basemean_slider_style = {'display':'none'}
+
+            tab_plot_volcano  = generate.tab_plot('Volcano Plot', 'volcano-plot', type='2D')
+            tab_plot_ma       = generate.tab_plot('MA Plot', 'ma-plot', type='2D', disabled=True)
+            tab_plot_mavolc   = generate.tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D', disabled=True)
+            tab_plot_settings = generate.tab_plot('Plot Settings', 'settings-plot',type='settings')
+
+            plot_tabs = [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings]
+        else:
+            file_type = 'bulk'
+            cluster_dropdown_style = {'display':'none'}
+
+            tab_plot_volcano  = generate.tab_plot('Volcano Plot', 'volcano-plot', type='2D')
+            tab_plot_ma       = generate.tab_plot('MA Plot', 'ma-plot', type='2D')
+            tab_plot_mavolc   = generate.tab_plot('MAxVolc Plot', 'maxvolc-plot', type='3D')
+            tab_plot_settings = generate.tab_plot('Plot Settings', 'settings-plot',type='settings')
+
+            plot_tabs = [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings]
+
+        files.write_global_vars(global_vars, session_id)
+
         feather.write_dataframe(df, 'temp_data_files/' + session_id)
 
         min_transform_padj = 0
@@ -208,8 +201,6 @@ def handle_df(filenames):
             max_transform_basemean = df['log10basemean'].max()
         except:
             pass
-
-        # Determine plots in the layout by uploaded file type
 
         return(session_id,
                 min_transform_padj,
