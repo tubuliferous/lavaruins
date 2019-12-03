@@ -151,7 +151,6 @@ def handle_df(filenames):
                 # print("Couldn't round", colname)
                 pass
 
-
         # Add log transformed columns
         df['neg_log10_padj'] = -np.log10(df['padj'])
         try:
@@ -161,16 +160,19 @@ def handle_df(filenames):
 
         # Move important column names to the left of the DataFrame
         # !!Need to catch error if critical colnames not found
-        if 'baseMean' in df.columns:
-            front_colnames = ['gene_ID', 'log2FoldChange', 'padj', 'neg_log10_padj', 'baseMean', 'log10basemean']
-        else:
-            front_colnames = ['gene_ID', 'log2FoldChange', 'padj', 'neg_log10_padj']
-        colnames = df.columns.tolist()
-        # Remove duplicate colnames moved to left
-        for this_colname in front_colnames:
-            colnames.remove(this_colname)
-        colnames = front_colnames + colnames
-        df = df[colnames]
+        try:
+            if 'baseMean' in df.columns:
+                front_colnames = ['gene_ID', 'log2FoldChange', 'padj', 'neg_log10_padj', 'baseMean', 'log10basemean']
+            else:
+                front_colnames = ['gene_ID', 'log2FoldChange', 'padj', 'neg_log10_padj', 'cluster']
+            colnames = df.columns.tolist()
+            # Remove duplicate colnames moved to left
+            for this_colname in front_colnames:
+                colnames.remove(this_colname)
+            colnames = front_colnames + colnames
+            df = df[colnames]
+        except:
+            print("Couldn't reorganize columns")
 
         global_vars = {
             'pvalue_reset_click_count':None,
