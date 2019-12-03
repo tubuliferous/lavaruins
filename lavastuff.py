@@ -121,7 +121,18 @@ class PlotCalculations:
 
 class InterfaceGenerators:
     def __init__(self):
-        pass
+        self.highlight_colors = [
+            '#1f77b4',  # muted blue
+            '#d62728',  # brick red
+            '#ff7f0e',  # safety orange
+            '#2ca02c',  # cooked asparagus green
+            '#9467bd',  # muted purple
+            '#8c564b',  # chestnut brown
+            '#e377c2',  # raspberry yogurt pink
+            '#bcbd22',  # curry yellow-green
+            '#17becf',   # blue-teal
+            '#ffcc66',
+        ]
 
     def __panel_feature(
         self, 
@@ -306,8 +317,7 @@ class InterfaceGenerators:
                 html.Div(id='maxvolc-plot-timediv', style={'display':'none'}),
                 # Hidden div for subset_data callback
                 html.Div(id='data-subset-sink', style={'display':'none'}),
-                # Keep track of the last clicked gene for highlighting and 
-                # metadata retrieval/display
+                # Keep track of the last clicked gene for highlighting and metadata retrieval/display
                 html.Div(id='last-selected-gene', style={'display':'none'}),
                 # App title header
                 html.A(children=[
@@ -556,8 +566,7 @@ class InterfaceGenerators:
                 human_md = dcc.Markdown(dedent('''''' +
                     '\n\n**Human Homolog Name**: *{}*'.format(human_homolog_name) +
                     '\n\n**Human Synonyms:** *{}*'.format(human_synonyms) +
-                    # Human homologs almost always have similar functional names, 
-                    #   so leave out for now
+                    # Human homologs almost always have similar functional names; leave out for now
                     '\n\n**Homolog Location:** {}'.format(human_location)))
 
                 hgnc_html_id = html.B('HGNC ID: ')
@@ -696,21 +705,6 @@ class InterfaceGenerators:
             'size':6,
             'opacity':0.5
         }
-
-        highlight_colors = [
-            '#1f77b4',  # muted blue
-            '#d62728',  # brick red
-            '#ff7f0e',  # safety orange
-            '#2ca02c',  # cooked asparagus green
-            '#9467bd',  # muted purple
-            '#8c564b',  # chestnut brown
-            '#e377c2',  # raspberry yogurt pink
-            # '#7f7f7f',  # middle gray
-            '#bcbd22',  # curry yellow-green
-            '#17becf',   # blue-teal
-            '#ffcc66',
-            '#800000'
-        ]
         
         # 2D plot setup
         if z_colname == None:
@@ -748,7 +742,7 @@ class InterfaceGenerators:
             figure = {
                 'data': traces,
                 'layout':go.Layout(
-                    colorway=highlight_colors,
+                    colorway=self.highlight_colors,
                     # Allows points to be highlighted when selected using built-in plot features
                     # Consider using 'clickmode='event+select'' for box selection
                     hovermode='closest',
@@ -793,7 +787,7 @@ class InterfaceGenerators:
             figure={
                 'data':traces,
                 'layout':go.Layout(
-                    colorway=highlight_colors,
+                    colorway=self.highlight_colors,
                     hovermode='closest',
                     title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
                     scene = dict(
@@ -918,9 +912,18 @@ class InterfaceGenerators:
 
     # Address DataTable column name cutoff
     # https://github.com/plotly/dash-table/issues/432
-    def table_conditional_style(self, df):
+    def table_conditional_style(self, df, dropdown_value_gene_list=None):
         PIXEL_FOR_CHAR = 5
         style=[]
+
+        def recycle_highlight_colors(index):
+            if index < (len(self.highlight_colors) - 1):
+                mod_index = index % (len(self.highlight_colors) - 1) + 1
+            else:
+                mod_index = (index % (len(self.highlight_colors) - 1))
+            highlight_color = self.highlight_colors[mod_index]
+            return(highlight_color)
+
         for col in df.columns:
             name_length = len(col)
             pixel = 50 + round(name_length*PIXEL_FOR_CHAR)
@@ -929,8 +932,16 @@ class InterfaceGenerators:
         style.append({
             'if': {'row_index': 'odd'}, 
             'backgroundColor': 'rgb(240, 240, 240)'})
-        return style
 
+        for i in range(0, len(dropdown_value_gene_list)):
+            style.append(
+                {'if': {
+                    'column_id': 'gene_ID',
+                    'filter_query': '{gene_ID} eq ' + '"{}"'.format(dropdown_value_gene_list[i])
+                },
+                    'backgroundColor':recycle_highlight_colors(i)})
+
+        return style
 
     def tab_table(self, plot_label, table_id, download_link_id=None):
         '''
