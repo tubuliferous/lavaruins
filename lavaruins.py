@@ -460,8 +460,10 @@ def serve_static(path):
     [
         Output('all-genes-table', 'columns'),
         Output('all-genes-table', 'data'),
+        Output('all-genes-table', 'style_data_conditional'),
         Output('highlighted-genes-table', 'columns'),
         Output('highlighted-genes-table', 'data'),
+        Output('highlighted-genes-table', 'style_data_conditional'),
         Output('highlighted-genes-download-link', 'href'),
         Output('highlighted-genes-download-link', 'download')
     ],
@@ -476,8 +478,21 @@ def populate_tables(session_id, dropdown_value_gene_list):
         df = feather.read_dataframe(files.temp_dir + '/' + session_id)
         df.dropna(how='all', axis=1, inplace=True)
 
+        # Change precision in numerical dataframe columns
+        # Skip p-value columns to prevent rounding to 0
+        # Future: Find a way to use string formatting with custom sorting in 
+        # Dash DataTables so I can also shorten p-value column values
+        non_p_colnames = [x for x in df.columns if x not in ['padj', 'pvalue']]
+        for colname in non_p_colnames: 
+            try:
+                df[colname]=df[colname].round(2)
+            except:
+                # print("Couldn't round", colname)
+                pass
+
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
+        all_genes_conditional_style = generate.table_conditional_style(df)
 
         clicktime = time.strftime('%Y_%m_%d_%Hh%Mm%Ss')
         highlighted_relative_filename =  'download/highlighted_df_' + clicktime + '.csv'
@@ -492,14 +507,17 @@ def populate_tables(session_id, dropdown_value_gene_list):
             highlighted_genes_table_columns = [{'name': i, 'id': i}
                                                for i in dropdown_slice_df.columns]
             highlighted_genes_table_data = dropdown_slice_df.to_dict('rows')
+            highlighted_genes_conditional_style = generate.table_conditional_style(dropdown_slice_df)
             # For downloads
             dropdown_slice_df = df[df['gene_ID'].isin(dropdown_value_gene_list)]
             dropdown_slice_df.to_csv(highlighted_relative_filename)
         return(
             all_genes_table_columns,
             all_genes_table_data,
+            all_genes_conditional_style,
             highlighted_genes_table_columns,
             highlighted_genes_table_data,
+            highlighted_genes_conditional_style,
             highlighted_relative_filename,
             highlighted_relative_filename
         )

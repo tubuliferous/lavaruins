@@ -416,7 +416,8 @@ class InterfaceGenerators:
     def gene_info(self,
                   gene_name='default',
                   session_id = None,
-                  df=None,organism_type=None,
+                  df=None,
+                  organism_type=None,
                   files=None,
                   file_type=None): 
         '''
@@ -853,6 +854,7 @@ class InterfaceGenerators:
             'padding':'6px',
             'fontWeight':'bold',
             'width':'150px',
+            'background':'rgb(240, 240, 240)'
         }
         tab_selected_style = {
             'borderTop':'1px solid #d6d6d6',
@@ -860,9 +862,11 @@ class InterfaceGenerators:
             'backgroundColor':'#717272',
             'color':'white',
             'padding':'6px',
+            'fontWeight':'bold',
             'width':'150px',
         }
         tab_disabled_style = {
+            'fontWeight':'bold',
             'padding':'6px',
             'width':'150px',
         }
@@ -912,22 +916,43 @@ class InterfaceGenerators:
                 disabled=disabled
         )
 
+    # Address DataTable column name cutoff
+    # https://github.com/plotly/dash-table/issues/432
+    def table_conditional_style(self, df):
+        PIXEL_FOR_CHAR = 5
+        style=[]
+        for col in df.columns:
+            name_length = len(col)
+            pixel = 50 + round(name_length*PIXEL_FOR_CHAR)
+            pixel = str(pixel) + "px"
+            style.append({'if': {'column_id': col}, 'minWidth': pixel})
+        style.append({
+            'if': {'row_index': 'odd'}, 
+            'backgroundColor': 'rgb(240, 240, 240)'})
+        return style
+
+
     def tab_table(self, plot_label, table_id, download_link_id=None):
         '''
         Generate table for tab at bottom of interface
         '''
         
         tab_style = {
+            'borderBottom':'1px solid #d6d6d6',
             'padding':'6px',
             'fontWeight':'bold',
+            # 'width':'150px',
+            'background':'rgb(240, 240, 240)'
         }
         tab_selected_style = {
             'borderTop':'1px solid #d6d6d6',
+            'borderBottom':'1px solid #d6d6d6',
             'backgroundColor':'#717272',
             'color':'white',
             'padding':'6px',
+            'fontWeight':'bold',
+            # 'width':'150px',
         }
-
 
         tab_children = []
         tab_children.append(
@@ -938,12 +963,23 @@ class InterfaceGenerators:
                 sort_action="native",
                 sort_mode='multi',
                 filter_action='native',
+                # Number of columns datatable page
+                page_size=100,
                 # n_fixed_rows=1,
                 # row_selectable='single',
-                fixed_rows={ 'headers': True, 'data': 0 },
-                style_table ={
-                    'maxHeight':'500',
-                    'overflowY':'scroll',
+                fixed_rows = { 'headers': True, 'data': 0 },
+                style_table = {
+                    # 'height':'1000'
+                    'maxHeight':'10000',
+                    # 'overflowY':'scroll',
+                    # 'overflowX':'scroll',
+                },
+                style_header = {
+                    'fontWeight': 'bold',
+                    'backgroundColor': 'rgb(240, 240, 240)'
+                },
+                style_filter={
+                    'backgroundColor': 'rgb(240, 240, 240)'
                 },
             )
         )
