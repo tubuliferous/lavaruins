@@ -138,6 +138,20 @@ def handle_df(filenames):
         except:
             pass
 
+        # Change precision for display in numerical dataframe columns
+        # !! Will change precision of outputted file from DataTable link
+        # Skip p-value columns to prevent rounding to 0
+        # Future: Find a way to use string formatting with custom sorting in 
+        # Dash DataTables so I can also shorten p-value column values
+        non_p_colnames = [x for x in df.columns if x not in ['padj', 'pvalue']]
+        for colname in non_p_colnames: 
+            try:
+                df[colname]=df[colname].round(2)
+            except:
+                # print("Couldn't round", colname)
+                pass
+
+
         # Add log transformed columns
         df['neg_log10_padj'] = -np.log10(df['padj'])
         try:
@@ -477,18 +491,6 @@ def populate_tables(session_id, dropdown_value_gene_list):
     else:
         df = feather.read_dataframe(files.temp_dir + '/' + session_id)
         df.dropna(how='all', axis=1, inplace=True)
-
-        # Change precision in numerical dataframe columns
-        # Skip p-value columns to prevent rounding to 0
-        # Future: Find a way to use string formatting with custom sorting in 
-        # Dash DataTables so I can also shorten p-value column values
-        non_p_colnames = [x for x in df.columns if x not in ['padj', 'pvalue']]
-        for colname in non_p_colnames: 
-            try:
-                df[colname]=df[colname].round(2)
-            except:
-                # print("Couldn't round", colname)
-                pass
 
         all_genes_table_columns = [{'name': i, 'id': i} for i in df.columns]
         all_genes_table_data = df.to_dict('rows')
