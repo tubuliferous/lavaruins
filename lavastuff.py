@@ -379,7 +379,7 @@ class InterfaceGenerators:
                                         'vertical-align':'top',
                                         'padding-top':'35px'})
                     ],
-                    style={'margin-bottom':'10px'}
+                    style={'margin-bottom':'20px'}
                 ),
                 # DataTables (bottom part of interface)
                 dcc.Tabs(
@@ -705,7 +705,11 @@ class InterfaceGenerators:
             'size':6,
             'opacity':0.5
         }
-        
+
+        # Set margins around 2D and 3D plots, respectively
+        dim2_plot_margins = {'t':70, 'r':30, 'l':70, 'b':40}
+        dim3_plot_margins = {'t':70, 'r':60, 'l':20, 'b':0}    
+
         # 2D plot setup
         if z_colname == None:
             traces_dict = dict(
@@ -720,7 +724,7 @@ class InterfaceGenerators:
             elif settings_rendering_radio_value == 'svg':
                 traces = [go.Scatter(**traces_dict)]
             
-            dim2_plot_margins = {'t':100, 'r':30, 'l':75, 'b':100}
+
 
             if dropdown_value_gene_list is not None:
                 for gene_name in dropdown_value_gene_list:
@@ -790,6 +794,7 @@ class InterfaceGenerators:
                     colorway=self.highlight_colors,
                     hovermode='closest',
                     title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
+                    margin=dim3_plot_margins,
                     scene = dict(
                         xaxis = dict(
                             title='A'),

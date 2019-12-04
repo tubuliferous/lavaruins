@@ -368,109 +368,102 @@ def subset_data(
     return None
 
 # Generate volcano plot from imported RNAseq subset
-def volc():
-    @app.callback(
-        Output('volcano-plot', 'figure'),
-        [Input('session-id', 'children'),
-         Input('settings-rendering-radio', 'value'),
-         Input('gene-dropdown', 'value'),
-         Input('data-subset-sink', 'children'),
-         Input('file-type', 'children')])
-    def plot_volcano(
-        session_id,
-        settings_rendering_radio_value,
-        dropdown_value_gene_list,
-        data_sink,
-        file_type):
+@app.callback(
+    Output('volcano-plot', 'figure'),
+    [Input('session-id', 'children'),
+     Input('settings-rendering-radio', 'value'),
+     Input('gene-dropdown', 'value'),
+     Input('data-subset-sink', 'children'),
+     Input('file-type', 'children')])
+def plot_volcano(
+    session_id,
+    settings_rendering_radio_value,
+    dropdown_value_gene_list,
+    data_sink,
+    file_type):
 
-        if session_id is None:
-            raise dash.exceptions.PreventUpdate()
-        else:
-            df = feather.read_dataframe('temp_data_files/' + session_id + '_subset')
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        df = feather.read_dataframe('temp_data_files/' + session_id + '_subset')
+        figure = generate.scatter(
+            df=df,
+            dropdown_value_gene_list=dropdown_value_gene_list,
+            settings_rendering_radio_value=settings_rendering_radio_value,
+            plot_title='<B>Significance vs. Effect Size</B>',
+            x_colname='log2FoldChange',
+            x_axis_title={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'},
+            y_colname='neg_log10_padj',
+            y_axis_title={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'})
+    return figure
+
+# Generate MA plot from imported RNAseq subset
+@app.callback(
+    Output('ma-plot', 'figure'),
+    [Input('session-id', 'children'),
+     Input('settings-rendering-radio', 'value'),
+     Input('gene-dropdown', 'value'),
+     Input('data-subset-sink', 'children'),
+     Input('file-type', 'children')])
+def plot_ma(
+    session_id,
+    settings_rendering_radio_value,
+    dropdown_value_gene_list,
+    data_sink,
+    file_type):
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        if file_type == 'bulk':
+            df = feather.read_dataframe(files.temp_dir + '/' +
+                                        session_id + '_subset')
             figure = generate.scatter(
                 df=df,
                 dropdown_value_gene_list=dropdown_value_gene_list,
                 settings_rendering_radio_value=settings_rendering_radio_value,
-                plot_title='Significance vs. Effect Size',
-                x_colname='log2FoldChange',
-                x_axis_title={'title':'<B>Effect Size: log<sub>2</sub>(FoldChange)</B>'},
-                y_colname='neg_log10_padj',
-                y_axis_title={'title':'<B>Significance: -log<sub>10</sub>(padj)</B>'})
-        return figure
-volc()
-
-# Generate MA plot from imported RNAseq subset
-def ma():
-    @app.callback(
-        Output('ma-plot', 'figure'),
-        [Input('session-id', 'children'),
-         Input('settings-rendering-radio', 'value'),
-         Input('gene-dropdown', 'value'),
-         Input('data-subset-sink', 'children'),
-         Input('file-type', 'children')])
-    def plot_ma(
-        session_id,
-        settings_rendering_radio_value,
-        dropdown_value_gene_list,
-        data_sink,
-        file_type):
-        if session_id is None:
-            raise dash.exceptions.PreventUpdate()
+                plot_title='Log Ratio (M) vs. Mean Average (A)',
+                x_colname='log10basemean',
+                x_axis_title={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'},
+                y_colname='log2FoldChange',
+                y_axis_title={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'})
         else:
-            if file_type == 'bulk':
-                df = feather.read_dataframe(files.temp_dir + '/' +
-                                            session_id + '_subset')
-                figure = generate.scatter(
-                    df=df,
-                    dropdown_value_gene_list=dropdown_value_gene_list,
-                    settings_rendering_radio_value=settings_rendering_radio_value,
-                    plot_title='Log Ratio (M) vs. Mean Average (A)',
-                    x_colname='log10basemean',
-                    x_axis_title={'title':'<B>A: log<sub>10</sub>(baseMean)</B>'},
-                    y_colname='log2FoldChange',
-                    y_axis_title={'title':'<B>M: log<sub>2</sub>(FoldChange)</B>'})
-            else:
-                figure = {}
-        return figure
-ma()
+            figure = {}
+    return figure
 
 # Generate MAxVolc plot from imported RNAseq subset
-def maxvolc():
-    @app.callback(
-        Output('maxvolc-plot', 'figure'),
-        [Input('session-id', 'children'),
-         Input('settings-rendering-radio', 'value'),
-         Input('gene-dropdown', 'value'),
-         Input('data-subset-sink', 'children'),
-         Input('file-type', 'children')])
-    def plot_maxvolc(
-        session_id,
-        settings_rendering_radio_value,
-        dropdown_value_gene_list,
-        data,
-        file_type):
-        if session_id is None:
-            raise dash.exceptions.PreventUpdate()
+@app.callback(
+    Output('maxvolc-plot', 'figure'),
+    [Input('session-id', 'children'),
+     Input('settings-rendering-radio', 'value'),
+     Input('gene-dropdown', 'value'),
+     Input('data-subset-sink', 'children'),
+     Input('file-type', 'children')])
+def plot_maxvolc(
+    session_id,
+    settings_rendering_radio_value,
+    dropdown_value_gene_list,
+    data,
+    file_type):
+    if session_id is None:
+        raise dash.exceptions.PreventUpdate()
+    else:
+        if file_type == 'bulk':
+            df = feather.read_dataframe(files.temp_dir + '/' +
+                                        session_id + '_subset')
+            figure = generate.scatter(
+                df=df,
+                dropdown_value_gene_list=dropdown_value_gene_list,
+                settings_rendering_radio_value=settings_rendering_radio_value,
+                plot_title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
+                x_colname='log10basemean',
+                x_axis_title=dict(title='A'),
+                y_colname='log2FoldChange',
+                y_axis_title=dict(title='M'),
+                z_colname='neg_log10_padj',
+                z_axis_title=dict(title='Significance')) 
         else:
-            if file_type == 'bulk':
-                df = feather.read_dataframe(files.temp_dir + '/' +
-                                            session_id + '_subset')
-                figure = generate.scatter(
-                    df=df,
-                    dropdown_value_gene_list=dropdown_value_gene_list,
-                    settings_rendering_radio_value=settings_rendering_radio_value,
-                    plot_title='Log Ratio (M) vs. Mean Average (A) vs. Significance',
-                    x_colname='log10basemean',
-                    x_axis_title=dict(title='A'),
-                    y_colname='log2FoldChange',
-                    y_axis_title=dict(title='M'),
-                    z_colname='neg_log10_padj',
-                    z_axis_title=dict(title='Significance')) 
-            else:
-                figure = {}
-            return figure
-
-maxvolc()
+            figure = {}
+        return figure
 
 # For downloading tables
 #   - https://github.com/plotly/dash-recipes/blob/master/dash-download-file-link-server.py
@@ -647,5 +640,5 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
 
 if __name__ == '__main__':
     # app.run_server(threaded=True)
-    # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
+    app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
+    # app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
