@@ -494,7 +494,6 @@ def populate_tables(session_id, dropdown_value_gene_list):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
-        print("Triggered populate_tables()")
         df = feather.read_dataframe(files.temp_dir + '/' + session_id)
         df.dropna(how='all', axis=1, inplace=True)
 
@@ -618,7 +617,6 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
     if gene_dropdown_list is None:
         dash.exceptions.PreventUpdate()
     if len(gene_dropdown_list) != 0:
-        print('Triggered setup_gene_markdown()')
         df = feather.read_dataframe('temp_data_files/' + session_id)
         if cluster is not None:
             df = df[df['cluster'] == cluster]

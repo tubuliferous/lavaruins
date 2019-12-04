@@ -707,8 +707,8 @@ class InterfaceGenerators:
         }
 
         # Set margins around 2D and 3D plots, respectively
-        dim2_plot_margins = {'t':70, 'r':30, 'l':70, 'b':40}
-        dim3_plot_margins = {'t':70, 'r':60, 'l':20, 'b':0}    
+        dim2_plot_margins = {'t':70, 'r':40, 'l':60, 'b':45}
+        dim3_plot_margins = {'t':70, 'r':50, 'l':20, 'b':10}    
 
         # 2D plot setup
         if z_colname == None:
