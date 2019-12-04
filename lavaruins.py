@@ -63,8 +63,18 @@ tab_table_highlighted= generate.tab_table('Highlighted Genes',
                                           'highlighted-genes-download-link')
 
 app.layout = generate.main_layout(
-    [tab_plot_volcano, tab_plot_ma, tab_plot_mavolc, tab_plot_settings],
-    [tab_table_all, tab_table_highlighted])
+    tab_plots = 
+        [
+             tab_plot_volcano,
+             tab_plot_ma,
+             tab_plot_mavolc,
+             tab_plot_settings
+        ],
+    tab_tables = 
+        [
+            tab_table_all, 
+            tab_table_highlighted
+        ])
 
 #Get data from user, set session ID, and set up slider initial values
 @app.callback(
@@ -179,7 +189,7 @@ def handle_df(filenames):
             'foldchange_reset_click_count':None,
             'basemean_reset_click_count':None,
             'gene_dropdown_value_list': [],
-            'last_selected_gene':None
+            # 'last_selected_gene':None
         }
 
         # Determine plots layout by uploaded file type
@@ -491,6 +501,7 @@ def populate_tables(session_id, dropdown_value_gene_list):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
     else:
+        print("Triggered populate_tables()")
         df = feather.read_dataframe(files.temp_dir + '/' + session_id)
         df.dropna(how='all', axis=1, inplace=True)
 
@@ -595,9 +606,9 @@ def gene_click_actions(
             clicked_gene = clickdata['points'][0]['text']
             if clicked_gene not in gene_dropdown_value_list:
                 gene_dropdown_value_list = gene_dropdown_value_list + [clicked_gene]
-            global_vars = files.read_global_vars(session_id)
-            global_vars['last_selected_gene'] = clicked_gene
-            files.write_global_vars(global_vars, session_id)
+            # global_vars = files.read_global_vars(session_id)
+            # global_vars['last_selected_gene'] = clicked_gene
+            # files.write_global_vars(global_vars, session_id)
             return(gene_dropdown_value_list)
         else:
             return []
@@ -614,11 +625,13 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
     if gene_dropdown_list is None:
         dash.exceptions.PreventUpdate()
     if len(gene_dropdown_list) != 0:
+        print('Triggered setup_gene_markdown()')
         df = feather.read_dataframe('temp_data_files/' + session_id)
         if cluster is not None:
             df = df[df['cluster'] == cluster]
-        global_vars = files.read_global_vars(session_id)
-        last_selected_gene = global_vars['last_selected_gene']
+        # global_vars = files.read_global_vars(session_id)
+        last_selected_gene = gene_dropdown_list[len(gene_dropdown_list) - 1]
+        # last_selected_gene = global_vars['last_selected_gene']
         df_last_selected_gene = df[df['gene_ID']==last_selected_gene]
         markdown = generate.gene_info(
                         gene_name=last_selected_gene,
@@ -634,5 +647,5 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
 
 if __name__ == '__main__':
     # app.run_server(threaded=True)
-    # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
+    app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
+    # app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)

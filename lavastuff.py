@@ -459,7 +459,7 @@ class InterfaceGenerators:
                     if 'log10basemean' in df.columns:
                         basemean_formatted = str(round(row['log10basemean'], 2))
                     if 'cluster' in df.columns:
-                        this_cluster = row['cluster']
+                        this_cluster = str(row['cluster'])
                         foldchange_formatted = this_cluster + ': ' + foldchange_formatted
                         padj_formatted = this_cluster + ': ' + padj_formatted
                         if 'log10basemean' in df.columns:
@@ -910,12 +910,24 @@ class InterfaceGenerators:
                 disabled=disabled
         )
 
-    # Address DataTable column name cutoff
-    # https://github.com/plotly/dash-table/issues/432
     def table_conditional_style(self, df, dropdown_value_gene_list=None):
+        # Address DataTable column name cutoff
+        # https://github.com/plotly/dash-table/issues/432
         PIXEL_FOR_CHAR = 5
         style=[]
+        for col in df.columns:
+            name_length = len(col)
+            pixel = 50 + round(name_length*PIXEL_FOR_CHAR)
+            pixel = str(pixel) + "px"
+            style.append({'if': {'column_id': col}, 'minWidth': pixel})
 
+        # Differentially color odd and even rows, respectively
+        style.append({
+            'if': {'row_index': 'odd'}, 
+            'backgroundColor': 'rgb(240, 240, 240)'})            
+
+
+        # Highlight gene names in table for genes highlighted in plots
         def recycle_highlight_colors(index):
             if index < (len(self.highlight_colors) - 1):
                 mod_index = index % (len(self.highlight_colors) - 1) + 1
@@ -923,16 +935,6 @@ class InterfaceGenerators:
                 mod_index = (index % (len(self.highlight_colors) - 1))
             highlight_color = self.highlight_colors[mod_index]
             return(highlight_color)
-
-        for col in df.columns:
-            name_length = len(col)
-            pixel = 50 + round(name_length*PIXEL_FOR_CHAR)
-            pixel = str(pixel) + "px"
-            style.append({'if': {'column_id': col}, 'minWidth': pixel})
-        style.append({
-            'if': {'row_index': 'odd'}, 
-            'backgroundColor': 'rgb(240, 240, 240)'})
-
         for i in range(0, len(dropdown_value_gene_list)):
             style.append(
                 {'if': {
@@ -974,14 +976,13 @@ class InterfaceGenerators:
                 sort_action="native",
                 sort_mode='multi',
                 filter_action='native',
-                # Number of columns datatable page
-                page_size=100,
+                # Number of rows on datatable page
+                page_size=14,
                 # n_fixed_rows=1,
                 # row_selectable='single',
                 fixed_rows = { 'headers': True, 'data': 0 },
                 style_table = {
-                    # 'height':'1000'
-                    'maxHeight':'10000',
+                    # 'maxHeight':'1000px',
                     # 'overflowY':'scroll',
                     # 'overflowX':'scroll',
                 },
