@@ -90,6 +90,7 @@ app.layout = generate.main_layout(
         Output('basemean-slider', 'max'),
         Output('basemean-slider', 'marks'),
         Output('basemean-slider-div', 'style'),
+        Output('cluster-dropdown', 'value'),
         Output('cluster-dropdown-div', 'style'),
         Output('file-type', 'children'),
         Output('plot-tabs', 'children')
@@ -228,6 +229,9 @@ def handle_df(filenames):
         except:
             pass
 
+        # Reset cluster-dropdown value upon loading new file
+        cluster_dropdown_value = None 
+
         return(session_id,
                 min_transform_padj,
                 max_transform_padj,
@@ -242,6 +246,7 @@ def handle_df(filenames):
                 calculate.spaced_marks(min_transform_basemean,
                                  max_transform_basemean),
                 basemean_slider_style,
+                cluster_dropdown_value,
                 cluster_dropdown_style,
                 file_type,
                 plot_tabs)
@@ -312,9 +317,9 @@ def populate_gene_dropdown(session_id):
 # pupulate_gene_dropdown() callback
 @app.callback(
     Output('cluster-dropdown', 'options'),
-    [Input('gene-dropdown', 'options')],
-    [State('session-id', 'children'),
-     State('file-type', 'children')])
+    [Input('gene-dropdown', 'options'),
+     Input('session-id', 'children')],
+    [State('file-type', 'children')])
 def populate_cluster_dropdown(gene_dropdown_options, session_id, file_type):
     cluster_dropdown_options = [{'label':'NA', 'value':'NA'}]
     if session_id is None:
@@ -530,7 +535,7 @@ def populate_tables(session_id, dropdown_value_gene_list):
         )
 
 # Keep track of click timestamps from each plot for determining
-#   which plot clicked last
+# which plot clicked last
 def store_plot_timestamp(input_plot_id):
     @app.callback(
         Output(input_plot_id + '-timediv', 'children'),
@@ -550,7 +555,7 @@ for plot_id in plot_id_list:
 def reset_clickdata(session_id):
     return(None, None, None)
 
-# Make stuff happen when gene points are clicked on in plots
+# Make stuff happen when gene points are clicked in plots
 @app.callback(
     Output('gene-dropdown', 'value'),
     [Input('session-id', 'children')] +
