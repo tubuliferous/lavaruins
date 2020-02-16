@@ -20,7 +20,9 @@ files = lavastuff.LocalFiles(uploads_dir='uploads',
 convert = lavastuff.NumericalConverters()
 generate = lavastuff.InterfaceGenerators()
 calculate = lavastuff.PlotCalculations()
-go_assocs = _pickle.load(open('mouse_go_assocs.pickle', 'rb'))
+
+gotree = lavastuff.GoTermTree('resources/go.obo')
+mouse_go_assocs = _pickle.load(open('resources/mouse_go_assocs.pickle', 'rb'))
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -338,7 +340,7 @@ def populate_cluster_dropdown(gene_dropdown_options, session_id, file_type):
             cluster_dropdown_options = [{'label':i, 'value':i} for i in clusters]
         return(cluster_dropdown_options)
 
-# Subset data from imported RNAseq file on slider values
+# Subset data from imported RNAseq file on slider and GO menu values
 @app.callback(
     Output('data-subset-sink', 'children'),
     [Input('session-id', 'children'),
@@ -347,14 +349,16 @@ def populate_cluster_dropdown(gene_dropdown_options, session_id, file_type):
      Input('basemean-slider', 'value'),
      Input('cluster-dropdown', 'value'),
      Input('go-dropdown', 'value')
-     ])
+     ], 
+    [State('organism-select', 'value')])
 def subset_data(
     session_id,
     pvalue_slider_value,
     foldchange_slider_value,
     basemean_slider_value,
     cluster_dropdown_value,
-    go_dropdown_value
+    go_dropdown_value,
+    organism_type
     ):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
@@ -369,7 +373,10 @@ def subset_data(
             pass
         else:
             print("go dropdown triggered")
-            df = df[df['gene_ID'].isin(go_assocs.go_gene_lookup(go_dropdown_value))]
+            # df = df[df['gene_ID'].isin(go_assocs.go_gene_lookup(go_dropdown_value))]
+            if organism_type == 'mouse':
+                df = df[df['gene_ID'].isin(mouse_go_assocs.go_gene_lookup(go_dropdown_value))]
+
         print(go_dropdown_value)
         # print(cluster_dropdown_value)
         # print(go_dropdown_value)
@@ -661,10 +668,21 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
         markdown = generate.gene_info('default')
     return markdown
 
-# # Populate organism-specific GO terms in GO filter menu !! Not implemented yet 
-# @app.callback(Output)
-# def set_go_dropdown_options():
-#     return(None)
+# Populate organism-specific GO terms in GO filter menu !! Not implemented yet 
+@app.callback(
+    Output('go-dropdown', 'options'),
+    [Input('organism-select', 'value')])
+def set_go_dropdown_options(organism_type):
+    go_dropdown_options = []
+    if organism_type == 'mouse':
+        go_terms = list(set(mouse_go_assocs.assoc_df['GO_ID']))
+        for go_term in go_terms:
+            if go_term in gotree:
+                go_dropdown_options.append({'label':gotree[go_term].name, 'value':go_term})
+    elif organism_type == 'mouse':  
+        # !! Fill in with human GO terms after human association file can be generated
+        pass
+    return go_dropdown_options
 
 if __name__ == '__main__':
     # app.run_server(threaded=True)

@@ -228,15 +228,6 @@ class InterfaceGenerators:
                     multi=True)])])
 
         # Temporary GO filter menu. 
-        # !! Note that the menu options depend on classes from lavastuff.py and saved files 
-        # generated from lavastuff.py classes in prepare_static_reference_files.py
-        gotree = GoTermTree('resources/go.obo')
-        mouse_go_assocs = _pickle.load(open('mouse_go_assocs.pickle', 'rb'))
-        mouse_go_terms = list(set(mouse_go_assocs.assoc_df['GO_ID']))
-        go_mouse_dropdown_options = []
-        for go_term in mouse_go_terms:
-            if go_term in gotree:
-                go_mouse_dropdown_options.append({'label':gotree[go_term].name, 'value':go_term})
         __go_dropdown_feature = self.__panel_feature(
             element_id='go-dropdown-div',
             details_summary='Filter on Gene Ontology (GO)',
@@ -246,7 +237,6 @@ class InterfaceGenerators:
                     html.Div([
                     dcc.Dropdown(
                     id='go-dropdown',
-                    options=go_mouse_dropdown_options,
                     multi=True)])])
 
         # log₁₀(adjusted p-value) filter sliders and buttons

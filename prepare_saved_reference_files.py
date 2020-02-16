@@ -45,15 +45,10 @@ human_synonym_df.to_csv('../homologs_expanded_synonyms_human.tsv.gz', sep='\t', 
 # Genereate GO files data structures
 gotree = lavastuff.GoTermTree('resources/go.obo')
 mouse_go_assocs = lavastuff.GoAssocs('resources/gene_association.mgi.gz')
-with open('mouse_go_assocs.pickle', 'wb') as f:
+with open('resources/mouse_go_assocs.pickle', 'wb') as f:
     _pickle.dump(mouse_go_assocs, f)
 
-mouse_go_assocs = _pickle.load(open('mouse_go_assocs.pickle', 'rb'))
+mouse_go_assocs = _pickle.load(open('resources/mouse_go_assocs.pickle', 'rb'))
 mouse_go_terms = list(set(mouse_go_assocs.assoc_df['GO_ID']))
 len(mouse_go_terms)
-
-go_dropdown_options = []
-for go_term in mouse_go_terms:
-    if go_term in gotree:
-        go_dropdown_options.append({'label':gotree[go_term].name, 'value':go_term})
 
