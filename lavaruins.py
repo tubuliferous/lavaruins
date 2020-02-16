@@ -668,7 +668,7 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
         markdown = generate.gene_info('default')
     return markdown
 
-# Populate organism-specific GO terms in GO filter menu !! Not implemented yet 
+# Populate organism-specific GO terms in GO filter menu !! Not full-implemented yet 
 @app.callback(
     Output('go-dropdown', 'options'),
     [Input('organism-select', 'value')])
@@ -679,7 +679,7 @@ def set_go_dropdown_options(organism_type):
         for go_term in go_terms:
             if go_term in gotree:
                 go_dropdown_options.append({'label':gotree[go_term].name, 'value':go_term})
-    elif organism_type == 'mouse':  
+    elif organism_type == 'human':  
         # !! Fill in with human GO terms after human association file can be generated
         pass
     return go_dropdown_options
