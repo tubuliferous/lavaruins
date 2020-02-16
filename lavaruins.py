@@ -12,6 +12,7 @@ import flask
 import feather
 import lavastuff
 from natsort import natsorted
+import _pickle
 
 files = lavastuff.LocalFiles(uploads_dir='uploads',
                              temp_dir='temp_data_files',
@@ -19,6 +20,7 @@ files = lavastuff.LocalFiles(uploads_dir='uploads',
 convert = lavastuff.NumericalConverters()
 generate = lavastuff.InterfaceGenerators()
 calculate = lavastuff.PlotCalculations()
+go_assocs = _pickle.load(open('mouse_go_assocs.pickle', 'rb'))
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
@@ -92,6 +94,7 @@ app.layout = generate.main_layout(
         Output('basemean-slider-div', 'style'),
         Output('cluster-dropdown', 'value'),
         Output('cluster-dropdown-div', 'style'),
+        Output('go-dropdown', 'value'),
         Output('file-type', 'children'),
         Output('plot-tabs', 'children')
     ],
@@ -190,7 +193,7 @@ def handle_df(filenames):
             'foldchange_reset_click_count':None,
             'basemean_reset_click_count':None,
             'gene_dropdown_value_list': [],
-            # 'last_selected_gene':None
+            'last_selected_gene':None
         }
 
         # Determine plots layout by uploaded file type
@@ -230,7 +233,10 @@ def handle_df(filenames):
             pass
 
         # Reset cluster-dropdown value upon loading new file
-        cluster_dropdown_value = None 
+        cluster_dropdown_value = None
+
+        # Reset go-dropdown value upon loading new file
+        go_dropdown_value = None 
 
         return(session_id,
                 min_transform_padj,
@@ -248,6 +254,7 @@ def handle_df(filenames):
                 basemean_slider_style,
                 cluster_dropdown_value,
                 cluster_dropdown_style,
+                go_dropdown_value,
                 file_type,
                 plot_tabs)
 
@@ -338,13 +345,16 @@ def populate_cluster_dropdown(gene_dropdown_options, session_id, file_type):
      Input('pvalue-slider', 'value'),
      Input('foldchange-slider', 'value'),
      Input('basemean-slider', 'value'),
-     Input('cluster-dropdown', 'value')])
+     Input('cluster-dropdown', 'value'),
+     Input('go-dropdown', 'value')
+     ])
 def subset_data(
     session_id,
     pvalue_slider_value,
     foldchange_slider_value,
     basemean_slider_value,
-    cluster_dropdown_value
+    cluster_dropdown_value,
+    go_dropdown_value
     ):
     if session_id is None:
         raise dash.exceptions.PreventUpdate()
@@ -353,6 +363,16 @@ def subset_data(
         df = df.rename(index=str, columns={'symbol':'gene_ID'})
         if cluster_dropdown_value is not None:
             df = df[df['cluster'] == cluster_dropdown_value]
+        if go_dropdown_value is None:
+            pass
+        elif len(go_dropdown_value) == 0:
+            pass
+        else:
+            print("go dropdown triggered")
+            df = df[df['gene_ID'].isin(go_assocs.go_gene_lookup(go_dropdown_value))]
+        print(go_dropdown_value)
+        # print(cluster_dropdown_value)
+        # print(go_dropdown_value)
         if pvalue_slider_value is not None:
             min_slider = pvalue_slider_value[0]
             max_slider = pvalue_slider_value[1]
@@ -603,9 +623,9 @@ def gene_click_actions(
             clicked_gene = clickdata['points'][0]['text']
             if clicked_gene not in gene_dropdown_value_list:
                 gene_dropdown_value_list = gene_dropdown_value_list + [clicked_gene]
-            # global_vars = files.read_global_vars(session_id)
-            # global_vars['last_selected_gene'] = clicked_gene
-            # files.write_global_vars(global_vars, session_id)
+            global_vars = files.read_global_vars(session_id)
+            global_vars['last_selected_gene'] = clicked_gene
+            files.write_global_vars(global_vars, session_id)
             return(gene_dropdown_value_list)
         else:
             return []
@@ -625,9 +645,9 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
         df = feather.read_dataframe('temp_data_files/' + session_id)
         if cluster is not None:
             df = df[df['cluster'] == cluster]
-        # global_vars = files.read_global_vars(session_id)
-        last_selected_gene = gene_dropdown_list[len(gene_dropdown_list) - 1]
-        # last_selected_gene = global_vars['last_selected_gene']
+        global_vars = files.read_global_vars(session_id)
+        # last_selected_gene = gene_dropdown_list[len(gene_dropdown_list) - 1]
+        last_selected_gene = global_vars['last_selected_gene']
         df_last_selected_gene = df[df['gene_ID']==last_selected_gene]
         markdown = generate.gene_info(
                         gene_name=last_selected_gene,
@@ -640,6 +660,11 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
     else:
         markdown = generate.gene_info('default')
     return markdown
+
+# # Populate organism-specific GO terms in GO filter menu !! Not implemented yet 
+# @app.callback(Output)
+# def set_go_dropdown_options():
+#     return(None)
 
 if __name__ == '__main__':
     # app.run_server(threaded=True)

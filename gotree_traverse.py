@@ -7,8 +7,6 @@ import pandas as pd
 
 pd.set_option('display.max_columns', None)
 
-
-
 class GoTerm(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
@@ -52,7 +50,9 @@ class GoTermTree(dict):
 
     def __init__(self, go_file_path):
         self.go_file_path = go_file_path
-        def __get_go_terms_dict(go_file_path):
+        def get_go_terms_dict(go_file_path):
+            with open('resources/go.obo', 'rt') as f:
+                go_file_contents = f.read()
             terms = {GoTerm(text).id:GoTerm(text) for text in go_file_contents.split('\n\n') if GoTerm(text).is_valid()}
             # Add children to the GO terms dictionary 
             for go_id in terms:
@@ -60,7 +60,7 @@ class GoTermTree(dict):
                 for parent in term.parents:
                     terms[parent].children.append(go_id)
             return terms
-        self.update(__get_go_terms_dict(go_file_path))
+        self.update(get_go_terms_dict(go_file_path))
 
     def subtree_print(self, go_id, indent_level=''):
         if self[go_id].children is []:
@@ -85,81 +85,65 @@ class GoTermTree(dict):
             for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
         return list(flatten(nested_list))
 
+    def download_latest_goterms(self, out_filepath):
+        go_file_url = "http://purl.obolibrary.org/obo/go.obo"
+        r = requests.get(go_file_url)
+        open(out_filepath, 'wb').write(r.content)
+        return(out_filepath)
 
-def get_association_dataframe(assoc_file_path):
-    assoc_df = pd.read_csv(assoc_file_path, sep='\t', skiprows=24, header=None)
-    assoc_df.columns = [
-        "DB",
-        "DB_Object_ID",
-        "DB_Object_Symbol",
-        "Qualifier",
-        "GO_ID",
-        "DB:Reference(s)",
-        "Evidence_Code",
-        "With_(or)From",
-        "Aspect_(GO_DAG_Abbreviation_(F,_P,_C))",
-        "DB_Object_Name",
-        "DB_Object_Synonym(s)",
-        "DB_Object_Type",
-        "Taxon",
-        "Date",
-        "Assigned_By",
-        "Annotation_Extension",
-        "Gene_Product_Form_ID"
-    ]
-    return assoc_df
+class GoTools():
+    def __init__(self, assoc_file_path):
+        def get_association_dataframe(assoc_file_path):
+            assoc_df = pd.read_csv(assoc_file_path, sep='\t', skiprows=24, header=None)
+            assoc_df.columns = [
+                "DB",
+                "DB_Object_ID",
+                "DB_Object_Symbol",
+                "Qualifier",
+                "GO_ID",
+                "DB:Reference(s)",
+                "Evidence_Code",
+                "With_(or)From",
+                "Aspect_(GO_DAG_Abbreviation_(F,_P,_C))",
+                "DB_Object_Name",
+                "DB_Object_Synonym(s)",
+                "DB_Object_Type",
+                "Taxon",
+                "Date",
+                "Assigned_By",
+                "Annotation_Extension",
+                "Gene_Product_Form_ID"
+            ]
+            return assoc_df
+        def generate_go_to_gene_dict(assoc_df):
+            go_gene_dict = {}
+            for index, row in assoc_df.iterrows():
+                go_id = row['GO_ID']
+                # Add to existing set value if GO ID already in dictionary
+                if go_id in go_gene_dict:
+                    go_gene_dict[go_id].update([row['DB_Object_Symbol']])
+                    if isinstance(row['DB_Object_Synonym(s)'], str):
+                        go_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
+                # Create new set value if GO ID not already in dictionary
+                else:
+                    go_gene_dict[go_id] = set([row['DB_Object_Symbol']])
+                    if isinstance(row['DB_Object_Synonym(s)'], str):
+                        go_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
+            return go_gene_dict
+        def generate_go_to_goname_dict(assoc_df):
 
-assoc_df = get_association_dataframe("resources/gene_association.mgi.gz")
-assoc_df.head()
+        self.assoc_df = get_association_dataframe(assoc_file_path)
+        self.go_to_gene_dict = generate_go_to_gene_dict(self.assoc_df)
 
-def generate_go_to_gene_dict(assoc_df):
-    go_gene_dict = {}
-    for index, row in assoc_df.iterrows():
-        go_id = row['GO_ID']
-        # Add to existing set value if GO ID already in dictionary
-        if go_id in go_gene_dict:
-            # go_gene_dict[go_id] = go_gene_dict[go_id] + [row['DB_Object_Symbol']]
-            go_gene_dict[go_id].update([row['DB_Object_Symbol']])
-            if isinstance(row['DB_Object_Synonym(s)'], str):
-            # if ~np.isnan(row['DB_Object_Synonym(s)']):
-                # go_gene_dict[go_id] += row['DB_Object_Synonym(s)'].split('|')
-                go_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
-        # Create new set value if GO ID not already in dictionary
-        else:
+    def go_gene_lookup(self, go_list):
+        gene_set = set()
+        for go_term in go_list:
+            gene_set.update(self.go_to_gene_dict[go_term])
+        return list(gene_set)
 
-            go_gene_dict[go_id] = set([row['DB_Object_Symbol']])
-            if isinstance(row['DB_Object_Synonym(s)'], str):
-                # go_gene_dict[go_id] += row['DB_Object_Synonym(s)'].split('|')
-                go_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
-    return go_gene_dict
+gt = GoTools('resources/gene_association.mgi.gz')
+gt.go_gene_lookup(['GO:0031386', 'GO:0045735'])
+gotree = GoTermTree('resources/go.obo')
+gotree.download_latest_goterms('resources/go.obo')
+gotree.subtree_flat_list('GO:0038024')
 
-go_to_gene_dict = generate_go_to_gene_dict(assoc_df)
-len(go_gene_dict['GO:0098978'])
-
-# Make a GO term lookup -- return all gene synonyms associated with list of GO term
-def gene_list_from_go_list(go_list, go_to_gene_dict):
-    gene_set = set()
-    for go_term in go_list:
-        gene_set.update([go_to_gene_dict[go_term]])
-    return list(gene_set)
-
-gene_list_from_go_list(['GO:0031386', 'GO:0045735'], go_to_gene_dict)
-
-
-
-# Download latest GO terms flat file
-# def retrieve_goterms(out_filepath):
-#     go_file_url = "http://purl.obolibrary.org/obo/go.obo"
-#     r = requests.get(go_file_url)
-#     open(out_filepath, 'wb').write(r.content)
-#     return(out_filepath)
-
-# Downlaod GO terms file and then save to disk
-# with open(retrieve_goterms('resources/go.obo'), 'rt') as f:
-#     go_file_contents = f.read()
-
-test_tree = GoTermTree('resources/go.obo')
-
-# test_tree['GO:0038024']
-test_tree.subtree_flat_list('GO:0038024')
-# test_tree.subtree('GO:0038024')

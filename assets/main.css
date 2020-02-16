@@ -412,3 +412,6 @@ there.
 
 /* Larger than Desktop HD */
 @media (min-width: 1200px) {}
+
+/* Prevent dropdown name overlapping */
+.VirtualizedSelectOption { white-space: nowrap; overflow: scroll; text-overflow: ellipsis; }

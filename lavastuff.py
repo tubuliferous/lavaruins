@@ -10,6 +10,11 @@ import numpy as np
 from textwrap import dedent
 from natsort import index_natsorted, order_by_index
 
+import requests
+import re
+import itertools
+import _pickle
+
 class LocalFiles:
     def __init__(self, uploads_dir, temp_dir, resources_dir):
         self.upload_dir = uploads_dir
@@ -196,7 +201,7 @@ class InterfaceGenerators:
                         value='mouse'
                     )
                 ])
-                                
+
         # SC cluster selection dropdown menu
         __cluster_feature = self.__panel_feature(
             element_id='cluster-dropdown-div',
@@ -220,6 +225,28 @@ class InterfaceGenerators:
                     html.Div([
                     dcc.Dropdown(
                     id='gene-dropdown',
+                    multi=True)])])
+
+        # Temporary GO filter menu. 
+        # !! Note that the menu options depend on classes from lavastuff.py and saved files 
+        # generated from lavastuff.py classes in prepare_static_reference_files.py
+        gotree = GoTermTree('resources/go.obo')
+        mouse_go_assocs = _pickle.load(open('mouse_go_assocs.pickle', 'rb'))
+        mouse_go_terms = list(set(mouse_go_assocs.assoc_df['GO_ID']))
+        go_mouse_dropdown_options = []
+        for go_term in mouse_go_terms:
+            if go_term in gotree:
+                go_mouse_dropdown_options.append({'label':gotree[go_term].name, 'value':go_term})
+        __go_dropdown_feature = self.__panel_feature(
+            element_id='go-dropdown-div',
+            details_summary='Filter on Gene Ontology (GO)',
+            open_details=False,
+            html_element_list=\
+                [
+                    html.Div([
+                    dcc.Dropdown(
+                    id='go-dropdown',
+                    options=go_mouse_dropdown_options,
                     multi=True)])])
 
         # log₁₀(adjusted p-value) filter sliders and buttons
@@ -250,6 +277,7 @@ class InterfaceGenerators:
                         reset_button_id='foldchange-reset-button'),
                 ],)
 
+        # Base mean filter sliders and buttons
         __basemean_slider_feature = self.__panel_feature(
             element_id='basemean-slider-div',
             details_summary='Filter on log₁₀(BaseMean)',
@@ -262,6 +290,7 @@ class InterfaceGenerators:
                         submit_button_id = 'basemean-submit-button',
                         reset_button_id='basemean-reset-button'),
                 ])        
+
 
         def collapsible_tree(tree_data=None, id='dash-collapsible-tree'):
             test_tree_data = {
@@ -341,6 +370,9 @@ class InterfaceGenerators:
                                 # Gene highlighter dropdown menu
                                 __gene_dropdown_feature, 
 
+                                # GO filter dropdown menu
+                                __go_dropdown_feature,
+
                                 # log₁₀(adjusted p-value) filter sliders and buttons
                                 __pvalue_slider_feature,
 
@@ -351,7 +383,8 @@ class InterfaceGenerators:
                                 __basemean_slider_feature,
 
                                 # GO Tree filter menu 
-                                __collapsible_tree_feature],
+                                # __collapsible_tree_feature,
+                            ],
 
                             style={'width':'20%', 
                                    'display':'inline-block', 
@@ -981,11 +1014,10 @@ class InterfaceGenerators:
                 sort_action="native",
                 sort_mode='multi',
                 filter_action='native',
-                # Number of rows on datatable page
-                page_size=14,
+                page_size=14, # Number of rows on datatable page
                 # n_fixed_rows=1,
                 # row_selectable='single',
-                fixed_rows = { 'headers': True, 'data': 0 },
+                fixed_rows = { 'headers': True, 'data': 0 }, 
                 style_table = {
                     # 'maxHeight':'1000px',
                     # 'overflowY':'scroll',
@@ -1007,5 +1039,149 @@ class InterfaceGenerators:
             label=plot_label,
             children=tab_children,
             style=tab_style,
-            selected_style=tab_selected_style,
-        )
+            selected_style=tab_selected_style,)
+
+class GoTerm(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+    
+    single_valued = 'id name namespace def comment synonym is_obsolete'.split()
+    multi_valued = 'subset xref is_a alt_id'.split()
+    
+    def __init__(self, text):
+        self.children = []
+        self.parents = []
+        self.alt_id = []
+        self.id = None
+        self.is_a = []
+        self.genes =[]
+        self.is_term = len(re.findall('\[Term\]', text)) >= 1
+        for line in text.splitlines():
+            if not ': ' in line:
+                continue
+            key, val = line.split(': ', 1)
+            if key in GoTerm.single_valued:
+                self[key] = val
+            elif key in GoTerm.multi_valued:
+                if not key in self:
+                    self[key] = [val]
+                else:
+                    self[key].append(val)
+            else:
+                # print('unclear property: %s' % line)
+                pass
+        if 'is_a' in self:
+            self.parents = [e.split(' ! ')[0] for e in self.is_a]
+    def is_top(self):
+        return self.parents == []
+    def is_valid(self):
+        return self.get('is_obsolete') != 'true' and self.id != None and self.is_term
+
+class GoTermTree(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __init__(self, go_file_path):
+        def get_go_terms_dict(go_file_path):
+            with open('resources/go.obo', 'rt') as f:
+                go_file_contents = f.read()
+            # Add GoTerm objects to GO lookup dictionary (accessible directly when using GoTermTree object)
+            # terms = {GoTerm(text).id:GoTerm(text) for text in go_file_contents.split('\n\n') if GoTerm(text).is_valid()}
+            terms = {}
+            for text in go_file_contents.split('\n\n'):
+                if GoTerm(text).is_valid():
+                    term = GoTerm(text)
+                    terms.update({term.id:term})
+                # Add alternate IDs 
+                    if len(term.alt_id) > 0:
+                        for this_alt_id in term.alt_id:
+                            terms.update({this_alt_id:term})
+
+            # Add children to the GO terms dictionary 
+            for go_id in terms:
+                term = terms[go_id]
+                for parent in term.parents:
+                    terms[parent].children.append(go_id)
+            return terms
+        self.update(get_go_terms_dict(go_file_path))
+
+    def subtree_print(self, go_id, indent_level=''):
+        if self[go_id].children is []:
+            pass
+        else:
+            indent_level += '\t'
+            for this_go_id in self[go_id].children:
+                print(indent_level, end='')
+                print(this_go_id)
+                self.subtree(this_go_id, indent_level)
+
+    def subtree_nested_list(self, go_id):
+        tree_list = []
+        for this_go_id in self[go_id].children:
+            tree_list.append([this_go_id, self.subtree_nested_list(this_go_id)])
+        return tree_list
+
+    def subtree_flat_list(self, go_id):
+        nested_list = self.subtree_nested_list(go_id)
+        # ref: https://stackoverflow.com/questions/2158395/flatten-an-irregular-list-of-lists
+        flatten = lambda *n: (e for a in n
+            for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
+        return list(flatten(nested_list))
+
+    def download_latest_goterms(self, out_filepath):
+        go_file_url = "http://purl.obolibrary.org/obo/go.obo"
+        r = requests.get(go_file_url)
+        open(out_filepath, 'wb').write(r.content)
+        return(out_filepath)
+
+class GoAssocs():
+    def __init__(self, assoc_file_path):
+        def get_association_dataframe(assoc_file_path):
+            assoc_df = pd.read_csv(assoc_file_path, sep='\t', skiprows=24, header=None)
+            assoc_df.columns = [
+                "DB",
+                "DB_Object_ID",
+                "DB_Object_Symbol",
+                "Qualifier",
+                "GO_ID",
+                "DB:Reference(s)",
+                "Evidence_Code",
+                "With_(or)From",
+                "Aspect_(GO_DAG_Abbreviation_(F,_P,_C))",
+                "DB_Object_Name",
+                "DB_Object_Synonym(s)",
+                "DB_Object_Type",
+                "Taxon",
+                "Date",
+                "Assigned_By",
+                "Annotation_Extension",
+                "Gene_Product_Form_ID"
+            ]
+            return assoc_df
+        def generate_go_to_gene_dict(assoc_df):
+            go_gene_dict = {}
+            for index, row in assoc_df.iterrows():
+                go_id = row['GO_ID']
+                # Add to existing set value if GO ID already in dictionary
+                if go_id in go_gene_dict:
+                    go_gene_dict[go_id].update([row['DB_Object_Symbol']])
+                    if isinstance(row['DB_Object_Synonym(s)'], str):
+                        go_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
+                # Create new set value if GO ID not already in dictionary
+                else:
+                    go_gene_dict[go_id] = set([row['DB_Object_Symbol']])
+                    if isinstance(row['DB_Object_Synonym(s)'], str):
+                        go_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
+            return go_gene_dict
+
+        self.assoc_df = get_association_dataframe(assoc_file_path)
+        self.go_to_gene_dict = generate_go_to_gene_dict(self.assoc_df)
+
+    def go_gene_lookup(self, go_list):
+        gene_set = set()
+        for go_term in go_list:
+            if go_term in self.go_to_gene_dict:
+                gene_set.update(self.go_to_gene_dict[go_term])
+        return list(gene_set)
