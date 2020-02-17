@@ -21,7 +21,7 @@ convert = lavastuff.NumericalConverters()
 generate = lavastuff.InterfaceGenerators()
 calculate = lavastuff.PlotCalculations()
 
-gotree = lavastuff.GoTermTree('resources/go.obo')
+gotree = lavastuff.GoTermTree('resources/go.obo.gz')
 mouse_go_assocs = _pickle.load(open('resources/mouse_go_assocs.pickle', 'rb'))
 
 # Display all columns when printing dataframes to console
@@ -373,9 +373,9 @@ def subset_data(
             pass
         else:
             print("go dropdown triggered")
-            # df = df[df['gene_ID'].isin(go_assocs.go_gene_lookup(go_dropdown_value))]
+            # df = df[df['gene_ID'].isin(go_assocs.golist_to_collapsed_gene_list(go_dropdown_value))]
             if organism_type == 'mouse':
-                df = df[df['gene_ID'].isin(mouse_go_assocs.go_gene_lookup(go_dropdown_value))]
+                df = df[df['gene_ID'].isin(mouse_go_assocs.golist_to_collapsed_gene_list(go_dropdown_value))]
 
         print(go_dropdown_value)
         # print(cluster_dropdown_value)

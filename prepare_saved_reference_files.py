@@ -1,11 +1,33 @@
 import pandas as pd
 import _pickle
 import lavastuff
+import gzip
+import requests
 
+# Download latest MGI files found here: http://www.informatics.jax.org/downloads/reports/index.html
 pd.set_option('display.max_columns', 500)
 
+def download_latest_mouse_assocs(out_filepath):
+    go_file_url = 'http://www.informatics.jax.org/downloads/reports/gene_association.mgi.gz'
+    r = requests.get(go_file_url)
+    open(out_filepath, 'wb').write(r.content)
+    return(out_filepath)
+def download_latest_goterms(out_filepath):
+    go_file_url = 'http://purl.obolibrary.org/obo/go.obo'
+    r = requests.get(go_file_url)
+    gzip.open(out_filepath, 'wb').write(r.content)
+    return(out_filepath)
+def download_latest_homologs(out_filepath):
+    go_file_url = 'http://www.informatics.jax.org/downloads/reports/HOM_AllOrganism.rpt'
+    r = requests.get(go_file_url)
+    gzip.open(out_filepath, 'wb').write(r.content)
+    return(out_filepath)
+download_latest_mouse_assocs(out_filepath='resources/gene_association.mgi.gz')
+download_latest_goterms(out_filepath='resources/go.obo.gz')
+download_latest_homologs(out_filepath='resources/HOM_AllOrganism.rpt.tsv.gz')
+
 def generate_organism_gene_synonyms_df(homologs_file_path, common_organism_name):
-    df = pd.read_csv("/Users/tubuliferous/Dropbox/Projects/UAB/lavaruins/resources/HOM_AllOrganism.rpt.tsv.gz", sep='\t')
+    df = pd.read_csv(homologs_file_path, sep='\t')
     this_org_df = df[df['Common Organism Name'] == common_organism_name]
 
     # Get separate organism-specific gene dfs with and without synonyms
@@ -16,7 +38,7 @@ def generate_organism_gene_synonyms_df(homologs_file_path, common_organism_name)
     # this_org_df_syns['Symbol'][this_org_df_syns['Symbol'].duplicated()]
 
     # Generate separate dictionary entry for main gene 
-    gene_syn_dict = {k:this_org_df_syns[this_org_df_syns['Symbol']==k]["Synonyms"].values[0].split('|') for k in this_org_df_syns['Symbol']}
+    gene_syn_dict = {k:this_org_df_syns[this_org_df_syns['Symbol']==k]['Synonyms'].values[0].split('|') for k in this_org_df_syns['Symbol']}
 
     # Add main gene name to gene synonym lists
     for k in gene_syn_dict:
@@ -32,23 +54,16 @@ def generate_organism_gene_synonyms_df(homologs_file_path, common_organism_name)
     df_not_this_organism = df[df['Common Organism Name'] != common_organism_name]
     final_df = pd.concat([df_updated_this_organism, this_org_df_no_syns, df_not_this_organism], )
     return final_df
-
 # Generate mouse homologs file
-mouse_synonym_df = generate_organism_gene_synonyms_df("../HOM_AllOrganism.rpt.tsv.gz", 'mouse, laboratory')
-mouse_synonym_df.to_csv('../homologs_expanded_synonyms_mouse.tsv.gz', sep='\t', compression='gzip')
-
+mouse_synonym_df = generate_organism_gene_synonyms_df('resources/HOM_AllOrganism.rpt.tsv.gz', 'mouse, laboratory')
+mouse_synonym_df.to_csv('resources/homologs_expanded_synonyms_mouse.tsv.gz', sep='\t', compression='gzip')
 # Generate human homologs file
-human_synonym_df = generate_organism_gene_synonyms_df("/Users/tubuliferous/Dropbox/Projects/UAB/lavaruins/resources/HOM_AllOrganism.rpt.tsv.gz", 'human')
-human_synonym_df.to_csv('../homologs_expanded_synonyms_human.tsv.gz', sep='\t', compression='gzip')
-
+human_synonym_df = generate_organism_gene_synonyms_df('resources/HOM_AllOrganism.rpt.tsv.gz', 'human')
+human_synonym_df.to_csv('resources/homologs_expanded_synonyms_human.tsv.gz', sep='\t', compression='gzip')
 
 # Genereate GO files data structures
-gotree = lavastuff.GoTermTree('resources/go.obo')
+gotree = lavastuff.GoTermTree('resources/go.obo.gz')
 mouse_go_assocs = lavastuff.GoAssocs('resources/gene_association.mgi.gz')
+# Save GO associations file for quick loading in LavaRuins
 with open('resources/mouse_go_assocs.pickle', 'wb') as f:
     _pickle.dump(mouse_go_assocs, f)
-
-mouse_go_assocs = _pickle.load(open('resources/mouse_go_assocs.pickle', 'rb'))
-mouse_go_terms = list(set(mouse_go_assocs.assoc_df['GO_ID']))
-len(mouse_go_terms)
-

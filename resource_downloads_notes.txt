@@ -1,3 +1,8 @@
-2019/2/21
+All mouse downloads here:
+http://www.informatics.jax.org/downloads/reports/index.html
+
+For GO gene associations
+http://www.informatics.jax.org/downloads/reports/gene_association.mgi.gz
+
 For Homologene TSV for: gene synonyms, homology information, gene functional names, MGI IDs, HGNC IDs, OMIM IDs
 http://www.informatics.jax.org/downloads/reports/HOM_AllOrganism.rpt 

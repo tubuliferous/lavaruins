@@ -9,6 +9,7 @@ import plotly.graph_objs as go
 import numpy as np
 from textwrap import dedent
 from natsort import index_natsorted, order_by_index
+import gzip
 
 import requests
 import re
@@ -341,7 +342,7 @@ class InterfaceGenerators:
                 # App title header
                 html.A(children=[
                     html.Img(src='assets/lavaruins_logo.png', style={'width':'60px', 'display':'inline', 'vertical-align':'middle'},),], 
-                        href='https://github.com/tubuliferous/lavaruins', 
+                        href='https://github.com/tubuliferous/lavaruins', # Link to GitHub page
                         target='_blank',),
                         # style={'text-decoration':'none', 'color':'black'},),
                 html.H3('LavaRuins Differential Gene Expression Explorer', style={'display':'inline', }),
@@ -1075,10 +1076,9 @@ class GoTermTree(dict):
 
     def __init__(self, go_file_path):
         def get_go_terms_dict(go_file_path):
-            with open('resources/go.obo', 'rt') as f:
+            with gzip.open(go_file_path, 'rt') as f:
                 go_file_contents = f.read()
             # Add GoTerm objects to GO lookup dictionary (accessible directly when using GoTermTree object)
-            # terms = {GoTerm(text).id:GoTerm(text) for text in go_file_contents.split('\n\n') if GoTerm(text).is_valid()}
             terms = {}
             for text in go_file_contents.split('\n\n'):
                 if GoTerm(text).is_valid():
@@ -1088,7 +1088,6 @@ class GoTermTree(dict):
                     if len(term.alt_id) > 0:
                         for this_alt_id in term.alt_id:
                             terms.update({this_alt_id:term})
-
             # Add children to the GO terms dictionary 
             for go_id in terms:
                 term = terms[go_id]
@@ -1120,11 +1119,7 @@ class GoTermTree(dict):
             for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
         return list(flatten(nested_list))
 
-    def download_latest_goterms(self, out_filepath):
-        go_file_url = "http://purl.obolibrary.org/obo/go.obo"
-        r = requests.get(go_file_url)
-        open(out_filepath, 'wb').write(r.content)
-        return(out_filepath)
+
 
 class GoAssocs():
     def __init__(self, assoc_file_path):
@@ -1169,9 +1164,27 @@ class GoAssocs():
         self.assoc_df = get_association_dataframe(assoc_file_path)
         self.go_to_gene_dict = generate_go_to_gene_dict(self.assoc_df)
 
-    def go_gene_lookup(self, go_list):
+    # Supply a GO gene list and return a list of associated genes
+    def golist_to_collapsed_gene_list(self, go_list):
         gene_set = set()
         for go_term in go_list:
             if go_term in self.go_to_gene_dict:
                 gene_set.update(self.go_to_gene_dict[go_term])
+            else:
+                print("Warning: GO Term " + go_term + " not found in the GO-to-gene dictionary.")
         return list(gene_set)
+
+    # Supply a GoTermTree object and a GO gene list and return a 
+    # GMT (Gene Matrix Transposed) pandas DataFrame for gene set analysis 
+    def golist_to_gmt(self,go_list, go_tree):
+        gmt_list = []
+        for go_term in go_list:
+            if go_term in self.go_to_gene_dict:
+                this_row = []
+                this_row.append(go_term)
+                this_row.append(go_tree[go_term].name)
+                this_row  += self.go_to_gene_dict[go_term]
+                gmt_list.append(this_row)
+            else:
+                print("GO Term " + go_term + " not found in the GO-to-gene dictionary.")
+        return pd.DataFrame(gmt_list)
