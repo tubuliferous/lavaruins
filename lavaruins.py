@@ -11,6 +11,7 @@ import flask
 # import dash_extendable_graph as deg
 import feather
 import lavastuff
+import gotools
 from natsort import natsorted
 import _pickle
 
@@ -21,7 +22,7 @@ convert = lavastuff.NumericalConverters()
 generate = lavastuff.InterfaceGenerators()
 calculate = lavastuff.PlotCalculations()
 
-gotree = lavastuff.GoTermTree('resources/go.obo.gz')
+gotree = gotools.GoTermTree('resources/go.obo.gz')
 mouse_go_assocs = _pickle.load(open('resources/mouse_go_assocs.pickle', 'rb'))
 
 # Display all columns when printing dataframes to console
