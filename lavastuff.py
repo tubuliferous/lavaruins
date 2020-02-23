@@ -128,7 +128,7 @@ class PlotCalculations:
         return marks
 
 class InterfaceGenerators:
-    def __init__(self):
+    def __init__(self, go_tree, mouse_go_assocs):
         self.highlight_colors = [
             '#1f77b4',  # muted blue
             '#d62728',  # brick red
@@ -143,8 +143,8 @@ class InterfaceGenerators:
         ]
 
         # !! Get other organism associations and refactor code
-        self.mouse_go_assocs = _pickle.load(open('resources/mouse_go_assocs.pickle', 'rb'))
-        self.go_tree = gotools.GoTermTree('resources/go.obo.gz')
+        self.mouse_go_assocs = mouse_go_assocs
+        self.go_tree = go_tree
 
     def __panel_feature(
         self, 

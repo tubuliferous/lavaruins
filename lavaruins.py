@@ -18,12 +18,13 @@ import _pickle
 files = lavastuff.LocalFiles(uploads_dir='uploads',
                              temp_dir='temp_data_files',
                              resources_dir='resources')
-convert = lavastuff.NumericalConverters()
-generate = lavastuff.InterfaceGenerators()
-calculate = lavastuff.PlotCalculations()
 
 gotree = gotools.GoTermTree('resources/go.obo.gz')
 mouse_go_assocs = _pickle.load(open('resources/mouse_go_assocs.pickle', 'rb'))
+
+convert = lavastuff.NumericalConverters()
+generate = lavastuff.InterfaceGenerators(gotree, mouse_go_assocs)
+calculate = lavastuff.PlotCalculations()
 
 # Display all columns when printing dataframes to console
 pd.set_option('display.max_columns', 500)
