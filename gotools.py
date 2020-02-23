@@ -1,6 +1,7 @@
 import gzip
 import re
 import pandas as pd
+import warnings
 
 class GoTerm(dict):
     __getattr__ = dict.__getitem__
@@ -89,48 +90,73 @@ class GoTermTree(dict):
             for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
         return list(flatten(nested_list))
 
+# !! Makes sure this class robust to gene synonyms for all methods
+# !! Tie to Ensemble IDs or MGI IDs instead of gene synonyms once I 
+#    figure out how to PERFECTLY match MGI IDs to Ensembl IDs
 class GoAssocs():
-    def __init__(self, assoc_file_path):
-        def get_association_dataframe(assoc_file_path):
-            assoc_df = pd.read_csv(assoc_file_path, sep='\t', skiprows=24, header=None)
-            assoc_df.columns = [
-                "DB",
-                "DB_Object_ID",
-                "DB_Object_Symbol",
-                "Qualifier",
-                "GO_ID",
-                "DB:Reference(s)",
-                "Evidence_Code",
-                "With_(or)From",
-                "Aspect_(GO_DAG_Abbreviation_(F,_P,_C))",
-                "DB_Object_Name",
-                "DB_Object_Synonym(s)",
-                "DB_Object_Type",
-                "Taxon",
-                "Date",
-                "Assigned_By",
-                "Annotation_Extension",
-                "Gene_Product_Form_ID"
+    def __init__(self, assoc_file_path, ensemble_id_map=None):
+        def get_association_dataframe(assoc_file_path, ensemble_id_map):
+            df = pd.read_csv(assoc_file_path, sep='\t', comment='!', header=None)
+            df.columns = [
+                'DB',
+                'DB_Object_ID',
+                'DB_Object_Symbol',
+                'Qualifier',
+                'GO_ID',
+                'DB:Reference(s)',
+                'Evidence_Code',
+                'With_(or)From',
+                'Aspect_(GO_DAG_Abbreviation_(F,_P,_C))',
+                'DB_Object_Name',
+                'DB_Object_Synonym(s)',
+                'DB_Object_Type',
+                'Taxon',
+                'Date',
+                'Assigned_By',
+                'Annotation_Extension',
+                'Gene_Product_Form_ID'
             ]
-            return assoc_df
-        def generate_go_to_gene_dict(assoc_df):
-            go_gene_dict = {}
-            for index, row in assoc_df.iterrows():
+            # If an ensemble_id_map is provided, add a column of ensemble ids
+            # if ensemble_id_map is not None:
+                # df['Ensembl_ID'] = df['DB_Object_ID']
+                # df['Ensembl_ID'] = df['Ensembl_ID'].map(ensemble_id_map)
+                # gene_not_mapped = []
+                # for i in mouse_go_assocs.df['Ensembl_ID']:
+                #     gene_not_mapped.append(not isinstance(i, str))
+                # warnings.warning("Warning: ")
+
+            return df
+
+        def generate_go_to_gene_dict(df):
+            go_to_gene_dict = {}
+            go_to_gene_dict_no_synonyms = {}
+            for index, row in df.iterrows():
                 go_id = row['GO_ID']
                 # Add to existing set value if GO ID already in dictionary
-                if go_id in go_gene_dict:
-                    go_gene_dict[go_id].update([row['DB_Object_Symbol']])
+                if go_id in go_to_gene_dict:
+                    go_to_gene_dict[go_id].update([row['DB_Object_Symbol']])
+                    go_to_gene_dict_no_synonyms[go_id].update([row['DB_Object_Symbol']])
                     if isinstance(row['DB_Object_Synonym(s)'], str):
-                        go_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
+                        go_to_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
                 # Create new set value if GO ID not already in dictionary
                 else:
-                    go_gene_dict[go_id] = set([row['DB_Object_Symbol']])
+                    go_to_gene_dict[go_id] = set([row['DB_Object_Symbol']])
+                    go_to_gene_dict_no_synonyms[go_id] = set([row['DB_Object_Symbol']])
                     if isinstance(row['DB_Object_Synonym(s)'], str):
-                        go_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
-            return go_gene_dict
-
-        self.assoc_df = get_association_dataframe(assoc_file_path)
-        self.go_to_gene_dict = generate_go_to_gene_dict(self.assoc_df)
+                        go_to_gene_dict[go_id].update(row['DB_Object_Synonym(s)'].split('|'))
+            return go_to_gene_dict, go_to_gene_dict_no_synonyms
+        self.df = get_association_dataframe(assoc_file_path, ensemble_id_map)
+        self.go_to_gene_dict, self.go_to_gene_dict_no_synonyms = generate_go_to_gene_dict(self.df)
+        def generate_gene_to_go_dict(go_to_gene_dict):
+            gene_to_go_dict = {}
+            for go_term, gene_list in go_to_gene_dict.items():
+                for gene in gene_list:
+                    if gene in gene_to_go_dict:
+                        gene_to_go_dict[gene].append(go_term)
+                    else:
+                        gene_to_go_dict[gene] = [go_term]
+            return gene_to_go_dict
+        self.gene_to_go_dict = generate_gene_to_go_dict(self.go_to_gene_dict)
 
     # Supply a GO gene list and return a list of associated genes
     def golist_to_collapsed_gene_list(self, go_list):
@@ -139,19 +165,24 @@ class GoAssocs():
             if go_term in self.go_to_gene_dict:
                 gene_set.update(self.go_to_gene_dict[go_term])
             else:
-                print("Warning: GO Term " + go_term + " not found in the GO-to-gene dictionary.")
+                warnings.warning("Warning: GO Term " + go_term + " not found in the GO-to-gene dictionary.")
         return list(gene_set)
 
     # Supply a GoTermTree object and a GO gene list and return a 
     # GMT (Gene Matrix Transposed) pandas DataFrame for gene set analysis 
-    def golist_to_gmt(self,go_list, go_tree):
+    def golist_to_gmt(self, go_list, go_tree, include_synonyms=False):
         gmt_list = []
+        if include_synonyms == True:
+            this_go_to_gene_dict = self.go_to_gene_dict
+        elif include_synonyms == False:
+            this_go_to_gene_dict = self.go_to_gene_dict_no_synonyms
+
         for go_term in go_list:
-            if go_term in self.go_to_gene_dict:
+            if go_term in this_go_to_gene_dict:
                 this_row = []
                 this_row.append(go_term)
                 this_row.append(go_tree[go_term].name)
-                this_row  += self.go_to_gene_dict[go_term]
+                this_row += this_go_to_gene_dict[go_term]
                 gmt_list.append(this_row)
             else:
                 print("GO Term " + go_term + " not found in the GO-to-gene dictionary.")

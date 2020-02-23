@@ -676,7 +676,7 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
 def set_go_dropdown_options(organism_type):
     go_dropdown_options = []
     if organism_type == 'mouse':
-        go_terms = list(set(mouse_go_assocs.assoc_df['GO_ID']))
+        go_terms = list(set(mouse_go_assocs.df['GO_ID']))
         for go_term in go_terms:
             if go_term in gotree:
                 go_dropdown_options.append({'label':gotree[go_term].name, 'value':go_term})

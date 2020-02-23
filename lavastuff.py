@@ -16,6 +16,8 @@ import re
 import itertools
 import _pickle
 
+import gotools
+
 class LocalFiles:
     def __init__(self, uploads_dir, temp_dir, resources_dir):
         self.upload_dir = uploads_dir
@@ -139,6 +141,10 @@ class InterfaceGenerators:
             '#17becf',   # blue-teal
             '#ffcc66',
         ]
+
+        # !! Get other organism associations and refactor code
+        self.mouse_go_assocs = _pickle.load(open('resources/mouse_go_assocs.pickle', 'rb'))
+        self.go_tree = gotools.GoTermTree('resources/go.obo.gz')
 
     def __panel_feature(
         self, 
@@ -453,7 +459,8 @@ class InterfaceGenerators:
                   df=None,
                   organism_type=None,
                   files=None,
-                  file_type=None): 
+                  file_type=None,
+                  mouse_go_assocs=None): 
         '''
         Set up gene information panel on left side of Dash interface 
             -> files paramenter is a LocalFiles class object
@@ -505,6 +512,7 @@ class InterfaceGenerators:
                 basemean_string += ' ' + basemean_formatted
 
             #!! Use this as the basis for switching organisms for homolog lookups
+            # Mouse --------------------------------------------
             if organism_type == 'mouse':
                 homolog_annos = files.hom_annos_mouse
                 organism_string = 'mouse, laboratory'
@@ -585,6 +593,7 @@ class InterfaceGenerators:
                     '\n\n**Functional Name:** {}'.format(function_name)))
                 mgi_html_id = html.B('MGI ID: ')
                 mgi_html_link = html.A(mgi_id, href=mgi_link, target='_blank')
+
                 human_header = html.Span('Human Homolog', style={'font-size':'120%', 
                                          'text-decoration':'underline'})
                 human_md = dcc.Markdown(dedent('''''' +
@@ -603,6 +612,7 @@ class InterfaceGenerators:
                     omim_html_link = html.A(omim_id, href=omim_link, target='_blank')
                 else:
                     omim_html_link = omim_link
+                    mouse_header = html.Span('Mouse Gene', style={'font-size':'120%', 'text-decoration':'underline'}) 
 
                 mouse_details = html.Details([
                         html.Summary(mouse_header, style={'position': 'relative'}),
@@ -625,8 +635,27 @@ class InterfaceGenerators:
                         ])
                     ], open=True)
 
-                return [mouse_details, human_details]
+                # GO details section -----------------------
+                go_header = html.Span('Geno Ontology (GO) Terms', style={'font-size':'120%', 
+                                        'text-decoration':'underline'})
 
+                these_go_terms = self.mouse_go_assocs.gene_to_go_dict[gene_name]
+
+                go_terms_list = [] 
+                for go_term in these_go_terms:
+                    go_term_link = 'http://www.informatics.jax.org/vocab/gene_ontology/' + go_term
+                    go_term_name = self.go_tree[go_term].name
+                    go_terms_list.append(html.A(go_term + ' ' + go_term_name, href=go_term_link, target='_blank'))
+                    go_terms_list.append(html.P('\n'))
+
+                go_details = html.Details([
+                        html.Summary(go_header, style={'position':'relative'}),
+                        html.Div(go_terms_list)
+                    ], open=False)
+
+                return [mouse_details, human_details, go_details]
+
+            # Human --------------------------------------------
             if organism_type == 'human':
                 homolog_annos = files.hom_annos_human
                 organism_string = 'human'
@@ -709,6 +738,7 @@ class InterfaceGenerators:
                     ], open=True)
                 
                 return [human_details]
+
 
     def scatter(self,
                 df,
