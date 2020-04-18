@@ -69,16 +69,16 @@ tab_table_highlighted= generate.tab_table('Highlighted Genes',
                                           'highlighted-genes-download-link')
 
 app.layout = generate.main_layout(
-    tab_plots = 
+    tab_plots =
         [
              tab_plot_volcano,
              tab_plot_ma,
              tab_plot_mavolc,
              tab_plot_settings
         ],
-    tab_tables = 
+    tab_tables =
         [
-            tab_table_all, 
+            tab_table_all,
             tab_table_highlighted
         ])
 
@@ -109,7 +109,7 @@ def handle_df(filenames):
     if filenames is None:
          raise dash.exceptions.PreventUpdate()
     else:
-        # Set initial output values to None in order to have output 
+        # Set initial output values to None in order to have output
         # values in case these values aren't set by the incoming file
         min_transform_padj = None
         max_transform_padj = None
@@ -132,18 +132,18 @@ def handle_df(filenames):
         df.rename(index=str, columns={'symbol':'gene_ID'}, inplace=True)
 
         # Handle alternative column names found in scRNAseq files
-        df.rename(index=str, 
+        df.rename(index=str,
             columns={
                 'p_val':'pvalue',
                 'p_val_adj':'padj',
                 'avg_logFC':'log2FoldChange',
-                'gene':'gene_ID'}, 
+                'gene':'gene_ID'},
             inplace=True)
 
-        ''' 
+        '''
         Calculating these values upfront sidesteps weird bug where np.log
-        functions return positively or negatively infinite output values for 
-        input values between roughly 1e-12 and le-15 and not above or below 
+        functions return positively or negatively infinite output values for
+        input values between roughly 1e-12 and le-15 and not above or below
         those values (except for 0)
         '''
         # !!Hack: set adjusted p-values beyond numerical precision of Excel
@@ -159,10 +159,10 @@ def handle_df(filenames):
         # Change precision for display in numerical dataframe columns
         # !! Will change precision of outputted file from DataTable link
         # Skip p-value columns to prevent rounding to 0
-        # Future: Find a way to use string formatting with custom sorting in 
+        # Future: Find a way to use string formatting with custom sorting in
         # Dash DataTables so I can also shorten p-value column values
         non_p_colnames = [x for x in df.columns if x not in ['padj', 'pvalue']]
-        for colname in non_p_colnames: 
+        for colname in non_p_colnames:
             try:
                 df[colname]=df[colname].round(2)
             except:
@@ -240,7 +240,7 @@ def handle_df(filenames):
         cluster_dropdown_value = None
 
         # Reset go-dropdown value upon loading new file
-        go_dropdown_value = None 
+        go_dropdown_value = None
 
         return(session_id,
                 min_transform_padj,
@@ -266,7 +266,7 @@ def handle_df(filenames):
 def slider_setup(measurement_name):
     @app.callback(
             Output(measurement_name + '-slider', 'value'),
-        [ 
+        [
             Input('session-id', 'children'),
             Input(measurement_name + '-submit-button', 'n_clicks'),
             Input(measurement_name + '-reset-button', 'n_clicks'),
@@ -351,7 +351,7 @@ def populate_cluster_dropdown(gene_dropdown_options, session_id, file_type):
      Input('basemean-slider', 'value'),
      Input('cluster-dropdown', 'value'),
      Input('go-dropdown', 'value')
-     ], 
+     ],
     [State('organism-select', 'value')])
 def subset_data(
     session_id,
@@ -494,7 +494,7 @@ def plot_maxvolc(
                 y_colname='log2FoldChange',
                 y_axis_title=dict(title='M'),
                 z_colname='neg_log10_padj',
-                z_axis_title=dict(title='Significance')) 
+                z_axis_title=dict(title='Significance'))
         else:
             figure = {}
         return figure
@@ -670,7 +670,7 @@ def setup_gene_markdown(gene_dropdown_list, organism_type, session_id, file_type
         markdown = generate.gene_info('default')
     return markdown
 
-# Populate organism-specific GO terms in GO filter menu !! Not full-implemented yet 
+# Populate organism-specific GO terms in GO filter menu !! Not full-implemented yet
 @app.callback(
     Output('go-dropdown', 'options'),
     [Input('organism-select', 'value')])
@@ -681,7 +681,7 @@ def set_go_dropdown_options(organism_type):
         for go_term in go_terms:
             if go_term in gotree:
                 go_dropdown_options.append({'label':gotree[go_term].name, 'value':go_term})
-    elif organism_type == 'human':  
+    elif organism_type == 'human':
         # !! Fill in with human GO terms after human association file can be generated
         pass
     return go_dropdown_options
@@ -689,4 +689,4 @@ def set_go_dropdown_options(organism_type):
 if __name__ == '__main__':
     # app.run_server(threaded=True)
     # app.run_server(debug=True, dev_tools_ui=True, processes=4, threaded=False)
-    app.run_server(debug=False, dev_tools_ui=False, processes=4, threaded=False)
+    app.run(host='0.0.0.0', port=80, debug=True, dev_tools_ui=False, processes=4, threaded=True)

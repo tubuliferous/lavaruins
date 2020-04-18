@@ -1,0 +1,2 @@
+ 0 * * * * root /app/cleanup.sh > /var/log/cleanup-cron.log 2>&1
+
