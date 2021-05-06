@@ -13,7 +13,7 @@ feather-format==0.4.0
 Flask==1.0.3
 Flask-Caching==1.5.0
 Flask-Compress==1.4.0
-Flask-Cors==3.0.4
+Flask-Cors==3.0.9
 gunicorn==19.9.0
 idna==2.6
 ipython==7.3.0
