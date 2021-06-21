@@ -1,0 +1,7 @@
+version: '3'
+services:
+  lavaruins:
+    container_name: lavaruins
+    build: .
+    ports:
+      - "80:80"
